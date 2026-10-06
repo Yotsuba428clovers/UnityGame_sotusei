@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: c82231307cb3eeb40b871e445dd723b9
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - playerModelPrefab: {instanceID: 0}
+  - enemyPrefab: {instanceID: 0}
+  - bossPrefab: {instanceID: 0}
+  - enemyDeathFx: {instanceID: 0}
+  - hudFont: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
