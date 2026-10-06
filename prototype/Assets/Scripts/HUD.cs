@@ -4,10 +4,9 @@ using UnityEngine;
 public class HUD : MonoBehaviour
 {
     const float H = 1080f;   // 仮想解像度の高さ
+    public Font font;        // 空なら標準フォント
     PlayerCombat player;
-    public Font font;   // 空なら標準フォント
     GUIStyle style;
-    bool logged;
 
     static void Box(Rect r, Color c)
     {
@@ -35,7 +34,6 @@ public class HUD : MonoBehaviour
     {
         if (style == null) style = new GUIStyle(GUI.skin.label);
         style.font = font;   // 毎回代入(nullなら標準フォント)
-        if (!logged) { logged = true; Debug.Log("[HUD] font = " + (font != null ? font.name : "NULL")); }
         if (player == null)
         {
             player = FindFirstObjectByType<PlayerCombat>();
@@ -74,6 +72,20 @@ public class HUD : MonoBehaviour
             Label(new Rect(40, H - 84, 510, 28), "SWITCH BONUS x" + player.switchBonusMultiplier.ToString("0.0"), 20, Color.white, TextAnchor.MiddleLeft);
         }
 
+        // 自己強化の残り時間
+        float by = 108f;
+        if (player.LightningBuffRemaining > 0f)
+        {
+            Bar(new Rect(40, by, 300, 18), player.LightningBuffRemaining / player.buffDuration, ElementUtil.GetColor(Element.Lightning));
+            Label(new Rect(48, by - 3, 290, 24), "THUNDER MODE", 16, Color.white, TextAnchor.MiddleLeft);
+            by += 24f;
+        }
+        if (player.WindBuffRemaining > 0f)
+        {
+            Bar(new Rect(40, by, 300, 18), player.WindBuffRemaining / player.buffDuration, ElementUtil.GetColor(Element.Wind));
+            Label(new Rect(48, by - 3, 290, 24), "WIND MODE", 16, Color.white, TextAnchor.MiddleLeft);
+        }
+
         // 撃破数 / ボスHP
         if (Enemy.Boss != null && !Enemy.Boss.IsDead)
         {
@@ -88,7 +100,7 @@ public class HUD : MonoBehaviour
 
         // コンボ
         if (gm.Combo > 1 && gm.ComboActive)
-            Label(new Rect(W - 460, 300, 420, 90), gm.Combo + " HITS", 84, new Color(1f, 0.9f, 0.3f), TextAnchor.MiddleRight);
+            Label(new Rect(W - 460, 300, 420, 90), gm.Combo + " HITS", 64, new Color(1f, 0.9f, 0.3f), TextAnchor.MiddleRight);
 
         // バナー
         if (gm.BannerRemaining > 0f)
@@ -100,8 +112,6 @@ public class HUD : MonoBehaviour
 
         // 操作ヒント
         Label(new Rect(W - 900, H - 50, 860, 30),
-              "X:弱攻撃  Y:教攻撃  A:回避  B:必殺技  LB/RB:属性切り替え", 20, new Color(1f, 1f, 1f, 0.7f), TextAnchor.MiddleRight);
-
-
+              "X:Attack  Y:Heavy  A:Dodge  B:Special  LB/RB:Element", 20, new Color(1f, 1f, 1f, 0.7f), TextAnchor.MiddleRight);
     }
 }

@@ -5,6 +5,7 @@ using UnityEngine;
 // 雑魚・ボス共通の敵。頭上の球の色 = 弱点属性。
 // 弱点属性 x1.5 / 反属性(耐性) x0.6
 // 炎:継続ダメージ 氷:鈍足 雷:スタン 風:大きく吹き飛ばし
+// 氷の必殺技: 凍結(動けず攻撃不可・ノックバックなし)
 public class Enemy : MonoBehaviour
 {
     public static readonly List<Enemy> All = new List<Enemy>();
@@ -41,17 +42,35 @@ public class Enemy : MonoBehaviour
     readonly List<Material> mats = new List<Material>();
     readonly List<Color> baseCols = new List<Color>();
     Vector3 knockVel;
-    float nextAttack, stunUntil, slowUntil, burnUntil, nextBurnTick, flashUntil;
+    float nextAttack, stunUntil, slowUntil, burnUntil, nextBurnTick, flashUntil, frozenUntil;
     bool attacking, warn;
     int attackToken;
     Vector3 lastHitDir;   // 最後に受けた攻撃の方向
+    Collider[] cols;
 
     void OnEnable() { All.Add(this); }
     void OnDisable() { All.Remove(this); if (Boss == this) Boss = null; }
 
+    // Colliderが無いPrefabでも攻撃が当たるように、見た目の大きさに合わせて自動で付ける
+    void EnsureCollider()
+    {
+        if (GetComponentInChildren<Collider>() != null) return;   // 既にあれば何もしない
+
+        var rs = GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return;
+        Bounds b = rs[0].bounds;
+        foreach (var r in rs) b.Encapsulate(r.bounds);
+
+        Vector3 s = transform.lossyScale;
+        var col = gameObject.AddComponent<CapsuleCollider>();
+        col.center = transform.InverseTransformPoint(b.center);
+        col.radius = Mathf.Max(b.size.x, b.size.z) * 0.5f / Mathf.Max(0.0001f, Mathf.Max(s.x, s.z));
+        col.height = Mathf.Max(b.size.y / Mathf.Max(0.0001f, s.y), col.radius * 2f);
+    }
     void Start()
     {
         Hp = maxHp;
+        EnsureCollider();
         if (isBoss) Boss = this;
         player = FindFirstObjectByType<PlayerCombat>();
 
@@ -141,13 +160,33 @@ public class Enemy : MonoBehaviour
         attacking = false;
     }
 
+    // 凍結: 動けず、攻撃もできない(ボスは凍結時間が短い)
+    public void Freeze(float duration)
+    {
+        if (IsDead) return;
+        frozenUntil = Time.time + (isBoss ? duration * 0.3f : duration);
+        stunUntil = Mathf.Max(stunUntil, frozenUntil);
+        attackToken++;            // 攻撃の溜めをキャンセル
+        knockVel = Vector3.zero;
+    }
+
+    // プレイヤーの回避中に、当たり判定を無視する
+    public void IgnoreCollision(Collider other, bool ignore)
+    {
+        if (cols == null) cols = GetComponentsInChildren<Collider>();
+        foreach (var c in cols)
+            if (c != null) Physics.IgnoreCollision(other, c, ignore);
+    }
+
     // 戻り値 = 弱点を突いたか
     public bool TakeHit(float damage, Element element, Vector3 knockback)
     {
         if (IsDead) return false;
+
         Vector3 flat = knockback;
         flat.y = 0f;
         if (flat.sqrMagnitude > 0.0001f) lastHitDir = flat.normalized;
+
         bool weak = element == weakElement;
         bool resist = element == ElementUtil.Opposite(weakElement);
         float mult = weak ? weakMultiplier : (resist ? resistMultiplier : 1f);
@@ -155,6 +194,7 @@ public class Enemy : MonoBehaviour
 
         // knockbackは「飛ぶ距離(m)」として扱い、初速に変換
         float dist = knockback.magnitude * bossResist;
+        if (Time.time < frozenUntil) dist = 0f;   // 凍結中は吹っ飛ばない
         flashUntil = Time.time + 0.06f;
 
         switch (element)
@@ -204,6 +244,7 @@ public class Enemy : MonoBehaviour
         StartCoroutine(DeathRoutine());
     }
 
+    // やられ演出: 最後に受けた攻撃の方向へ吹っ飛び、回転しながら縮んで消える
     IEnumerator DeathRoutine()
     {
         Vector3 s = transform.localScale;
@@ -249,6 +290,7 @@ public class Enemy : MonoBehaviour
             if (Time.time < burnUntil) c = Color.Lerp(c, ElementUtil.GetColor(Element.Fire), 0.5f);
             if (Time.time < slowUntil) c = Color.Lerp(c, ElementUtil.GetColor(Element.Ice), 0.5f);
             if (warn) c = Color.Lerp(c, Color.red, 0.6f);
+            if (Time.time < frozenUntil) c = Color.Lerp(c, ElementUtil.GetColor(Element.Ice), 0.85f);
             if (Time.time < flashUntil) c = Color.white;
             if (mats[i].HasProperty("_BaseColor")) mats[i].SetColor("_BaseColor", c);
             if (mats[i].HasProperty("_Color")) mats[i].SetColor("_Color", c);

@@ -25,6 +25,7 @@ public class PlayerController : MonoBehaviour
     bool hasSpeedParam;
     float vy, dodgeEnd, nextDodge, slowUntil, slowMul = 1f;
     Vector3 dodgeDir;
+    float dodgeSpeedNow;
 
     void Awake()
     {
@@ -43,6 +44,24 @@ public class PlayerController : MonoBehaviour
     {
         slowUntil = Time.time + duration;
         slowMul = multiplier;
+    }
+
+    // 回避(無敵ダッシュ)を開始。通常の回避も、雷の強攻撃ダッシュもこれを使う
+    public void BeginDodge(Vector3 dir, float speed, float duration)
+    {
+        IsDodging = true;
+        dodgeEnd = Time.time + duration;
+        dodgeSpeedNow = speed;
+        dodgeDir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
+        FaceDirection(dodgeDir);
+        SetIgnoreEnemies(true);
+        AnimHelper.Trigger(anim, "Dodge");
+    }
+
+    // 回避中は敵をすり抜ける
+    void SetIgnoreEnemies(bool ignore)
+    {
+        foreach (var e in Enemy.All) e.IgnoreCollision(cc, ignore);
     }
 
     public void FaceDirection(Vector3 dir)
@@ -68,19 +87,19 @@ public class PlayerController : MonoBehaviour
 
         if (!Locked && input.Dodge && !IsDodging && Time.time >= nextDodge)
         {
-            IsDodging = true;
-            dodgeEnd = Time.time + dodgeDuration;
             nextDodge = Time.time + dodgeCooldown;
-            dodgeDir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
-            FaceDirection(dodgeDir);
-            AnimHelper.Trigger(anim, "Dodge");
+            BeginDodge(dir, dodgeSpeed, dodgeDuration);
         }
 
         Vector3 vel = Vector3.zero;
         if (IsDodging)
         {
-            if (Time.time >= dodgeEnd) IsDodging = false;
-            vel = dodgeDir * dodgeSpeed;
+            if (Time.time >= dodgeEnd)
+            {
+                IsDodging = false;
+                SetIgnoreEnemies(false);
+            }
+            vel = dodgeDir * dodgeSpeedNow;
         }
         else if (!Locked)
         {

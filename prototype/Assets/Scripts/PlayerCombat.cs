@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 戦闘の中心。通常4連コンボ / 強攻撃 / 必殺技 / 魔剣の属性切り替え
+// 戦闘の中心。通常コンボ / 強攻撃 / 属性別の必殺技 / 魔剣の属性切り替え
 [RequireComponent(typeof(PlayerController), typeof(PlayerInputs))]
 public class PlayerCombat : MonoBehaviour
 {
@@ -26,10 +26,24 @@ public class PlayerCombat : MonoBehaviour
     public float heavyKnockback = 3f;
     public float heavyRecovery = 0.7f;
 
-    [Header("必殺技(ゲージMAXでB)")]
+    [Header("必殺技:炎(ゲージMAXでB)")]
     public float specialDamage = 160f;
     public float specialRadius = 11f;
     public float specialKnockback = 8f;
+
+    [Header("必殺技:氷")]
+    public float iceRadius = 9f;
+    public float iceFreezeTime = 4f;
+    public float iceDamage = 30f;           // 凍結と同時に与える小ダメージ
+    public float iceHealBase = 40f;         // 回復量の基本値
+    public float iceHealPerEnemy = 6f;      // 凍結した敵1体ごとの追加回復
+    public float iceHealMaxRatio = 0.5f;    // 1回の回復の上限(最大HPに対する割合)
+
+    [Header("必殺技:雷・風(自己強化)")]
+    public float buffDuration = 12f;        // 強化の持続時間(秒)
+    public float heavyDashSpeed = 20f;      // 雷: 強攻撃のダッシュ速度
+    public float heavyDashTime = 0.25f;     // 雷: ダッシュ(無敵)時間
+    public float windAttackSpeed = 1.7f;    // 風: 通常攻撃の速度倍率
 
     [Header("属性切り替え")]
     public float switchBonusTime = 2f;          // 切り替え直後のボーナス時間
@@ -44,15 +58,18 @@ public class PlayerCombat : MonoBehaviour
     public GameObject enemyDeathFx;
     public float fxScale = 1f;
     public Vector3 fxOffset = new Vector3(0f, 1f, 1.2f);   // 斬撃を出す位置(自分から見て前方)
-    public Vector3 fxRotation = new Vector3(0f, 0f, 90f);
-    public Vector3 specialRotation = new Vector3(0f, 0f, 90f);   // 必殺技の向きの補正
-    public Vector3 switchRotation = new Vector3(0f, 0f, 90f);    // 属性切り替えの向きの補正// 斬撃の向きの補正(オイラー角)
+    public Vector3 fxRotation = new Vector3(0f, 0f, 90f);       // 斬撃の向きの補正(オイラー角)
+    public Vector3 specialRotation = new Vector3(0f, 0f, 90f);  // 必殺技の向きの補正
+    public Vector3 switchRotation = new Vector3(0f, 0f, 90f);   // 属性切り替えの向きの補正
 
     public Element CurrentElement { get; private set; } = Element.Fire;
     public float Hp { get; private set; }
     public float Gauge { get; private set; }
     public bool IsDead { get; private set; }
     public float SwitchBonusRemaining { get { return Mathf.Max(0f, switchBonusUntil - Time.time); } }
+    public float LightningBuffRemaining { get { return Mathf.Max(0f, lightningBuffUntil - Time.time); } }
+    public float WindBuffRemaining { get { return Mathf.Max(0f, windBuffUntil - Time.time); } }
+    public float AttackSpeed { get { return WindBuffRemaining > 0f ? windAttackSpeed : 1f; } }
 
     PlayerController controller;
     PlayerInputs input;
@@ -62,6 +79,8 @@ public class PlayerCombat : MonoBehaviour
     int combo, bufferedType;
     float lastAttackTime, nextActionTime, switchBonusUntil, invincibleUntil, bufferedUntil;
     static bool hitStopping;
+    float lightningBuffUntil, windBuffUntil;
+    bool inSpecial, hasAttackSpeedParam;
 
     void Awake()
     {
@@ -74,15 +93,20 @@ public class PlayerCombat : MonoBehaviour
     void Start()
     {
         anim = GetComponentInChildren<Animator>();
+        hasAttackSpeedParam = AnimHelper.Has(anim, "AttackSpeed", AnimatorControllerParameterType.Float);
         ApplySwordColor();
     }
 
     void Update()
     {
         if (IsDead) return;
+        if (hasAttackSpeedParam) anim.SetFloat("AttackSpeed", AttackSpeed);
 
-        if (input.NextElement) SwitchElement(1);
-        if (input.PrevElement) SwitchElement(-1);
+        if (!inSpecial)   // 必殺技の溜め中は属性を切り替えられない
+        {
+            if (input.NextElement) SwitchElement(1);
+            if (input.PrevElement) SwitchElement(-1);
+        }
 
         // 先行入力(0.25秒)
         if (input.Attack) Buffer(1);
@@ -140,18 +164,26 @@ public class PlayerCombat : MonoBehaviour
               lightKnockback * (finisher ? 4f : 1f), finisher, true);
 
         lastAttackTime = Time.time;
-        nextActionTime = Time.time + (finisher ? 0.55f : 0.25f);
-        controller.SlowFor(finisher ? 0.5f : 0.25f, 0.25f);
+        float spd = AttackSpeed;   // 風の強化中は攻撃間隔が短くなる
+        nextActionTime = Time.time + (finisher ? 0.55f : 0.25f) / spd;
+        controller.SlowFor((finisher ? 0.5f : 0.25f) / spd, 0.25f);
         if (finisher) combo = 0;
     }
 
     void HeavyAttack()
     {
         combo = 0;
-        AimAssist();
+        bool aimed = AimAssist();
         AnimHelper.Trigger(anim, "Heavy");
         nextActionTime = Time.time + heavyRecovery;
         controller.SlowFor(heavyRecovery, 0.15f);
+
+        // 雷の強化中: 強攻撃が回避(無敵ダッシュ)を伴う
+        if (LightningBuffRemaining > 0f)
+        {
+            Vector3 dir = aimed ? transform.forward : controller.InputDirection();
+            controller.BeginDodge(dir, heavyDashSpeed, heavyDashTime);
+        }
         StartCoroutine(HeavyRoutine());
     }
 
@@ -163,23 +195,81 @@ public class PlayerCombat : MonoBehaviour
         DoHit(heavyRange, heavyAngle, heavyDamage, heavyKnockback, true, true);
     }
 
+    // ---------- 必殺技(属性ごとに別) ----------
     IEnumerator SpecialRoutine()
     {
+        Element el = CurrentElement;
+        bool buff = el == Element.Lightning || el == Element.Wind;
+        float lockTime = buff ? 0.7f : 1.1f;   // 強化系は短めの硬直
+
+        inSpecial = true;
         Gauge = 0f;
-        nextActionTime = Time.time + 1.1f;
-        invincibleUntil = Time.time + 1.1f;
-        controller.SlowFor(1f, 0f);
+        nextActionTime = Time.time + lockTime;
+        invincibleUntil = Time.time + lockTime;
+        controller.SlowFor(lockTime - 0.1f, 0f);
         Rumble.Play(0.3f, 0.1f, 0.35f);
         AnimHelper.Trigger(anim, "Special");
         if (GameManager.Instance != null)
-            GameManager.Instance.ShowBanner(ElementUtil.GetLabel(CurrentElement) + " BLADE - SPECIAL!", 1.2f);
+            GameManager.Instance.ShowBanner(SpecialName(el), 1.2f);
 
         yield return new WaitForSeconds(0.35f);
+        inSpecial = false;
         if (IsDead) yield break;
-        PlayOrFlash(FxKind.Special, false, specialRadius, 0.35f);
-        DoHit(specialRadius, 360f, specialDamage, specialKnockback, true, false);
-        CameraFollow.Shake(0.5f, 0.4f);
-        Rumble.Play(1f, 1f, 0.5f);
+
+        PlayOrFlash(FxKind.Special, false, el == Element.Ice ? iceRadius : specialRadius, 0.35f);
+        switch (el)
+        {
+            case Element.Fire:
+                DoHit(specialRadius, 360f, specialDamage, specialKnockback, true, false);
+                break;
+            case Element.Ice:
+                IceSpecial();
+                break;
+            case Element.Lightning:
+                lightningBuffUntil = Time.time + buffDuration;
+                break;
+            case Element.Wind:
+                windBuffUntil = Time.time + buffDuration;
+                break;
+        }
+        CameraFollow.Shake(buff ? 0.2f : 0.5f, buff ? 0.2f : 0.4f);
+        Rumble.Play(buff ? 0.4f : 1f, buff ? 0.6f : 1f, buff ? 0.3f : 0.5f);
+    }
+
+    // 氷の必殺技: 範囲内の敵を凍結し、凍らせた数に応じてHP回復
+    void IceSpecial()
+    {
+        int count = Physics.OverlapSphereNonAlloc(transform.position + Vector3.up, iceRadius, buffer);
+        hitSet.Clear();
+        int frozen = 0;
+        for (int i = 0; i < count; i++)
+        {
+            Enemy e = buffer[i].GetComponentInParent<Enemy>();
+            if (e == null || e.IsDead || !hitSet.Add(e)) continue;
+            e.Freeze(iceFreezeTime);
+            frozen++;
+        }
+        DoHit(iceRadius, 360f, iceDamage, 0f, true, false);   // 凍結と同時に小ダメージ
+
+        float heal = Mathf.Min(maxHp * iceHealMaxRatio, iceHealBase + iceHealPerEnemy * frozen);
+        Heal(heal);
+    }
+
+    void Heal(float amount)
+    {
+        Hp = Mathf.Min(maxHp, Hp + amount);
+        DamagePopup.Spawn(transform.position + Vector3.up * 2.2f, amount, new Color(0.4f, 1f, 0.5f), false);
+    }
+
+    static string SpecialName(Element e)
+    {
+        switch (e)
+        {
+            case Element.Fire: return "FLAME BURST!";
+            case Element.Ice: return "FROZEN WORLD!";
+            case Element.Lightning: return "THUNDER DASH MODE!";
+            default: return "WIND RUSH MODE!";
+        }
     }
 
     // 範囲内の敵にダメージ。戻り値=ヒット数
@@ -229,8 +319,8 @@ public class PlayerCombat : MonoBehaviour
         hitStopping = false;
     }
 
-    // 近くの敵の方へ自動で向く
-    void AimAssist()
+    // 近くの敵の方へ自動で向く(向いたらtrue)
+    bool AimAssist()
     {
         Vector3 want = controller.InputDirection();
         if (want.sqrMagnitude < 0.01f) want = transform.forward;
@@ -248,7 +338,9 @@ public class PlayerCombat : MonoBehaviour
             float score = d + ang * 0.05f;
             if (score < bestScore) { bestScore = score; best = e; }
         }
-        if (best != null) controller.FaceDirection(best.transform.position - transform.position);
+        if (best == null) return false;
+        controller.FaceDirection(best.transform.position - transform.position);
+        return true;
     }
 
     // ---------- 被ダメージ ----------
