@@ -188,15 +188,15 @@
       "url": "https://packages.unity.com"
     },
     "io.github.hatayama.uloopmcp": {
-      "version": "https://github.com/hatayama/unity-cli-loop.git?path=/Packages/src",
+      "version": "3.12.0",
       "depth": 0,
-      "source": "git",
+      "source": "registry",
       "dependencies": {
-        "com.unity.ugui": "1.0.0",
+        "com.unity.nuget.mono-cecil": "1.11.6",
         "com.unity.nuget.newtonsoft-json": "3.2.1",
-        "com.unity.nuget.mono-cecil": "1.11.6"
+        "com.unity.ugui": "1.0.0"
       },
-      "hash": "c6aabe3a5286bd5f143b875031d4ea844ccd292a"
+      "url": "https://package.openupm.com"
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",

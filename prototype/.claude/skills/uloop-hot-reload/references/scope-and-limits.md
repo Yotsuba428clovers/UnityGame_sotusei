@@ -114,7 +114,8 @@ scope and is reported as `Skipped`, same as edits to them. With a verified
 baseline, event declarations are compared per accessor, so only the edited
 add or remove appears as a `Skipped` row. A newly added explicit event, or
 an edit before the first compile snapshot, still reports both accessors.
-Adding a nested type, an event, or an indexer to a compiled type is still out of scope.
+Adding a nested type or an indexer to a compiled type is still out of scope; an added
+field-like event applies within the limits described below.
 A new top-level `class`, `struct`, `enum`, or `interface` is introduced instead, within the
 limits in [introduced-types.md](introduced-types.md); a `record` is refused there.
 A member added to a compiled enum is out of scope too: it is not folded like an added
@@ -156,7 +157,8 @@ pattern that matches the property, `nameof`, `ref`/`out`/`in`, and conditional a
 on the property itself. A compound assignment or increment keeps hot reloading when it is
 rewritten as a plain assignment statement (`X = X + 1;`).
 
-Types, events, and indexers are not reported per member — no `Skipped` row names them;
+Types, indexers, and added events the store cannot hold (a struct host, a delegate type not
+visible outside the assembly) are not reported per member — no `Skipped` row names them;
 at most they surface as outside-body drift in `Warnings`. Treat their silence
 as "not applied" and land them with `uloop compile`.
 
@@ -258,6 +260,15 @@ method's row says which answer it got in `LifecycleNote` (see Output).
   its `Skipped` row names `uloop compile` as the only step: no rewrite of the body would make
   the engine call it.
 
+To re-run an edited compiled `OnEnable` on live objects — for example after adding a
+subscription to it — toggle the component around the reload instead of compiling: set
+`enabled = false` with `execute-dynamic-code`, run `hot-reload`, then set `enabled = true`.
+Unity calls the old `OnDisable` (so the old subscription is removed) and then the patched
+`OnEnable`; coroutines keep running because only the component is toggled. An edited
+`OnDisable` runs the next time the component is disabled; to run it now, toggle `enabled`
+after the reload. This works only for an `OnEnable` / `OnDisable` the compiled class already
+has; an added one is not called.
+
 The proxies exist only for the running session: nothing is attached outside Play Mode, and a
 compile or a domain reload drops them along with every other patch. Execution order relative
 to other components is not guaranteed — a proxy is its own component, so an added `Update`
@@ -347,12 +358,35 @@ Harmony accessor, which puts that method on the delegation path. Four shapes hav
 backing field to reach and stay `Skipped` (see the table below): an event with custom
 `add`/`remove` accessors, an `abstract`/`extern`/interface event, an event whose
 delegate type is not visible outside the assembly, and an event added in this edit
-(including one that had custom accessors when the assembly was last compiled).
+that the added-field store cannot hold (see below).
 Raising through a conditional receiver (`other?.E?.Invoke(x)`) and `nameof(E)` also
 stay `Skipped`.
-Subscribing to an event added in this edit, in any file of the run, is `Skipped`
-too, whether the handler is a method group or a lambda: the compiled assembly has no
-such event for the subscription to bind to until `uloop compile`.
+
+A field-like event added in this edit to a compiled, non-generic class that is visible
+outside the assembly keeps its delegate in the added-field store, like an added field, so edited bodies in any file of the same reload
+can subscribe, unsubscribe, raise, read, and assign it (instance or static). It is listed in
+`AddedFields`, shares the added-field lifetime, and compiled code that is not patched
+cannot see it. These stay `Skipped`: a struct host (the struct-field reason), a generic
+host or one nested in a generic type, a delegate type not visible outside the assembly, custom `add`/`remove` accessors, a name the
+compiled class already uses for another member, `E ??= h`, `nameof(E)`, `a?.E += h`, passing it by `ref`, an initializer an added
+field could not have, and `Get().E += h` (the receiver would be evaluated twice).
+A handler that is a method group of an added method or of a compiled private method is
+`Skipped` too; subscribe a lambda that calls it instead (`E += x => OnValue(x);`). When a
+compiled method already holds `E += OnValue;`, keep that line and add the lambda
+subscription beside it: the method applies, only the private accesses inside the lambda are
+rewritten, and a compiled `-= OnValue` still removes the kept handler. Do not wrap the kept
+line itself in a lambda, since the `-=` would stop removing it.
+Subscriptions live on the store's delegate, not on Unity objects: `+=` is not atomic, so
+subscribe and raise on the main thread only. A handler subscribed by an earlier reload
+keeps running the body it was subscribed with until it is removed and subscribed again
+(for a subscription made in `OnEnable`, toggle `enabled` as described under "Added Unity
+messages"). Changing the event's delegate type in a later reload drops its subscribers unless the
+new type can still read the old list (a variance-compatible change), and that reload names
+it in `Warnings`. The store keeps subscriptions until `--revert-all`, a compile, or a domain
+reload: an instance event's subscriptions go with the object, while a static event's outlive
+Play Mode when Domain Reload is off, as a compiled static event's do. Deleting the event from
+the source removes it from `AddedFields`, but its subscribers stay in the store until
+`--revert-all`, so adding it back delivers to them again.
 
 A `Skipped` row never undoes what an earlier reload applied to the same method: that
 patch keeps running, so the method matches neither the compiled assembly nor the
@@ -374,10 +408,10 @@ source on disk. When a run skips a method it had patched before, `Warnings` name
 | An added member's body cannot be fully bound in the hot-reload compilation | Hot reload cannot verify a member it cannot bind. A common cause: another file of the same reload, passed or pulled back in because it holds active patches, declares a compiled type from source, while a compiled API the body calls still names the compiled copy (for example, a lambda handed to a compiled `Register(Action<T>)`). The reason then names both types and the file declaring the compiled API. When the called member belongs to a type an earlier reload introduced and its signature was bound to the compiled copy, the reason names the introduced type and that compiled type instead. Either way the `Skipped` row names the step for that run (pass the file declaring the compiled API, leave the file declaring the type out, undo its edit and leave it out, or `uloop compile`), chosen from whether each file was passed, carried in, or already holds patches; a row about an added property's body points to the row of its accessor instead. A file passed this way is brought back by every later reload of the assembly while it stays unchanged, including the reload that re-applies after `--revert-all` or Play entry, until the next successful compile. When the skip deactivated added members an earlier reload applied, the next reload of the assembly retries their unchanged file once, so passing only the declaring file applies them again |
 | Edited setter, init, or indexer accessor of a *compiled* property | Accessor patching covers getters only; `uloop compile` applies these edits. Accessors of a property added in this edit are emitted instead |
 | Constructor (instance or static), operator, conversion operator, or explicit event accessor (add/remove) | Skipped; `uloop compile` applies these edits |
-| Method raises or reads a field-like event that has no reachable backing field | Custom `add`/`remove` accessors, an `abstract`/`extern`/interface event, a delegate type that is not visible outside the assembly, or an event added in this edit leave nothing for the shim's Harmony accessor to bind |
+| Method raises or reads a field-like event that has no reachable backing field | Custom `add`/`remove` accessors, an `abstract`/`extern`/interface event, a delegate type that is not visible outside the assembly, or an added event the added-field store cannot hold leave nothing for the shim's Harmony accessor to bind |
 | Method raises or reads a field-like event through a conditional receiver (`other?.E`) | The shim has no name for the conditional receiver to pass to the accessor call |
 | Method names a field-like event inside `nameof` | The shim is a different type and cannot keep the bare event name |
-| Method subscribes (`+=`/`-=`) to an event added in this edit | The shim binds the subscription against the compiled assembly, which has no such event yet |
+| Method subscribes (`+=`/`-=`) to an event added in this edit that the added-field store cannot hold | The shim binds the subscription against the compiled assembly, which has no such event yet; an added field-like event of a class is subscribed through the store instead |
 
 ## Failed — flips `Success` to `false`
 
@@ -391,7 +425,7 @@ source on disk. When a run skips a method it had patched before, `Warnings` name
 | Method signature not found in the loaded assembly | Usually a stale assembly; run `uloop compile`. In-file renames and signature changes are classified as added members before reaching this point |
 | Shim compile error (e.g. the body calls a member that does not exist yet) | The error is attributed to the file it came from: that file reports `Failed` with its own compiler errors (plus the `uloop compile` hint when they indicate a missing member) and the rest of the file is `Skipped`, while the other files of the assembly are recompiled without it and applied. Bodies elsewhere that call an added method this reload left out — its shim failed to compile, or another method of its file did — are `Skipped` with a reason naming that method; its own row says which. When errors cannot be attributed to a file, every file of that assembly reports one `(shim-compile)` entry; if only one method was edited, the failure is attributed to that method's name instead |
 | Patch rejected or crashed at apply time (e.g. `[BurstCompile]`, a patch-engine emit failure) | The entry carries the rejection reason or the underlying engine error |
-| Accessor binding failed for a shim type | The source references a member the compiled assembly does not have yet; every delegation-patched method in that shim type reports the binder error — run `uloop compile` and retry |
+| Accessor binding failed for a shim type | The source references a member the compiled assembly does not have yet; the first method of that shim type reports the binder error and the rest of its file is `Skipped` — run `uloop compile` and retry |
 | The signature-change gate could not finish the run safely — the retry that skips a gated change failed, or shim-compile isolation dropped an edited caller that had covered a change | Every file of that assembly reports `Method` = `(signature-change-gate)` carrying the specific cause; nothing from those files is applied, because the reload has no retry budget left to split them — fix the failing edit or run `uloop compile`. Files of other assemblies in the same command are unaffected |
 
 A reload applies each file all-or-nothing: when any method in a file fails to compile or validate, nothing from that file is applied and patches from earlier reloads stay active. The other files of the same assembly are still applied, except a body that calls an added method the reload left out, whether its own shim failed to compile or another method of its file did — that body is `Skipped` until the method applies. The one exception to all-or-nothing is a Harmony patch-engine failure in the middle of applying a validated file; that run reports itself as partially applied and recommends 'uloop hot-reload --revert-all'. A `Failed` row in `IntroducedTypes` widens the unit from the file to the assembly: type preparation runs once per assembly before any of its method bodies is transformed, so every file sharing that assembly is left unapplied, while files in other assemblies still apply.
