@@ -78,7 +78,6 @@ public class PlayerCombat : MonoBehaviour
     readonly HashSet<Enemy> hitSet = new HashSet<Enemy>();
     int combo, bufferedType;
     float lastAttackTime, nextActionTime, switchBonusUntil, invincibleUntil, bufferedUntil;
-    static bool hitStopping;
     float lightningBuffUntil, windBuffUntil;
     bool inSpecial, hasAttackSpeedParam;
 
@@ -87,7 +86,6 @@ public class PlayerCombat : MonoBehaviour
         controller = GetComponent<PlayerController>();
         input = GetComponent<PlayerInputs>();
         Hp = maxHp;
-        hitStopping = false;
     }
 
     void Start()
@@ -204,6 +202,7 @@ public class PlayerCombat : MonoBehaviour
 
         inSpecial = true;
         Gauge = 0f;
+        CombatPresentation.Special(el,transform.position);
         nextActionTime = Time.time + lockTime;
         invincibleUntil = Time.time + lockTime;
         controller.SlowFor(lockTime - 0.1f, 0f);
@@ -217,6 +216,7 @@ public class PlayerCombat : MonoBehaviour
         if (IsDead) yield break;
 
         PlayOrFlash(FxKind.Special, false, el == Element.Ice ? iceRadius : specialRadius, 0.35f);
+        CombatPulse.Create(transform.position,ElementUtil.GetColor(el),buff?3f:(el==Element.Ice?iceRadius:specialRadius),.65f);
         switch (el)
         {
             case Element.Fire:
@@ -293,6 +293,7 @@ public class PlayerCombat : MonoBehaviour
 
             Vector3 dir = dist > 0.01f ? to / dist : transform.forward;
             e.TakeHit(damage * mult, CurrentElement, dir * knockback);
+            if(hits<6)CombatPresentation.Impact(e.transform.position+Vector3.up*.12f,ElementUtil.GetColor(CurrentElement),big);
             hits++;
             if (hitPrefab != null && hits <= 12)   // 大量ヒット時の負荷対策で上限あり
                 Fx.Play(hitPrefab, e.transform.position + Vector3.up * e.transform.localScale.y, Quaternion.identity, fxScale);
@@ -304,19 +305,9 @@ public class PlayerCombat : MonoBehaviour
             if (GameManager.Instance != null) GameManager.Instance.AddCombo(hits);
             CameraFollow.Shake(big ? 0.25f : 0.07f, 0.12f);
             Rumble.Play(big ? 0.5f : 0.15f, big ? 0.7f : 0.3f, big ? 0.18f : 0.08f);
-            if (!hitStopping) StartCoroutine(HitStop(big ? 0.09f : 0.04f));
+            CombatPresentation.HitStop(big ? 0.075f : 0.035f);
         }
         return hits;
-    }
-
-    // ヒットストップ(一瞬止めて手応えを出す)
-    IEnumerator HitStop(float duration)
-    {
-        hitStopping = true;
-        Time.timeScale = 0.05f;
-        yield return new WaitForSecondsRealtime(duration);
-        Time.timeScale = 1f;
-        hitStopping = false;
     }
 
     // 近くの敵の方へ自動で向く(向いたらtrue)
@@ -354,6 +345,7 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
         Hp -= dmg;
+        CombatPresentation.Impact(transform.position,new Color(1,.35f,.2f),false);
         invincibleUntil = Time.time + 0.25f;
         CameraFollow.Shake(0.2f, 0.15f);
         Rumble.Play(0.8f, 0.4f, 0.25f);
@@ -391,6 +383,7 @@ public class PlayerCombat : MonoBehaviour
     // 登録済みならPrefabのエフェクト、未登録なら仮の半透明の球を出す
     void PlayOrFlash(FxKind kind, bool front, float flashRadius, float flashLife)
     {
+        if(kind==FxKind.Slash||kind==FxKind.Heavy)CombatPresentation.Sound(0,transform.position);
         GameObject prefab = GetFx(kind);
         if (prefab == null)
         {
@@ -407,15 +400,6 @@ public class PlayerCombat : MonoBehaviour
     // 簡易エフェクト(後で自作VFXに差し替えOK)
     void SpawnFlash(float radius, Color c, float life)
     {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        Destroy(go.GetComponent<Collider>());
-        go.transform.position = transform.position + Vector3.up;
-        go.transform.localScale = new Vector3(radius * 2f, 0.3f, radius * 2f);
-        var r = go.GetComponent<Renderer>();
-        var m = new Material(Shader.Find("Sprites/Default"));
-        m.color = new Color(c.r, c.g, c.b, 0.35f);
-        r.material = m;
-        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        Destroy(go, life);
+        CombatPulse.Create(transform.position,c,radius,Mathf.Max(.2f,life));
     }
 }

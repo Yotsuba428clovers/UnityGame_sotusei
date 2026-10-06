@@ -8,6 +8,13 @@ public class QuickSetup : MonoBehaviour
     public GameObject playerModelPrefab;
     public GameObject enemyPrefab;
     public GameObject bossPrefab;
+    public GameObject[] additionalEnemyPrefabs;
+    public bool enhanceBattlePresentation=true;
+    public int startingEnemies=6;
+    public int maxAliveEnemies=18;
+    [Header("戦闘サウンド（未設定なら合成音）")]
+    public AudioClip swingSound, hitSound, warningSound, slamSound, specialSound;
+    [Range(0,1)] public float combatSoundVolume=.35f;
     public bool createPlaceholderSword = true;
     public int killsToBoss = 50;
 
@@ -99,12 +106,22 @@ public class QuickSetup : MonoBehaviour
 
         // ゲーム管理
         var sys = new GameObject("GameSystems");
+        var presentation=sys.AddComponent<CombatPresentation>();
+        presentation.swingSound=swingSound;presentation.hitSound=hitSound;
+        presentation.warningSound=warningSound;presentation.slamSound=slamSound;
+        presentation.specialSound=specialSound;presentation.soundVolume=combatSoundVolume;
+        if(enhanceBattlePresentation)sys.AddComponent<BattleEnvironment>();
         var gm = sys.AddComponent<GameManager>();
         gm.killsToBoss = killsToBoss;
         var spawner = sys.AddComponent<EnemySpawner>();
         spawner.player = player.transform;
         spawner.enemyPrefab = enemyPrefab;
         spawner.bossPrefab = bossPrefab;
+        spawner.additionalEnemyPrefabs=additionalEnemyPrefabs;
+        spawner.startingEnemies=startingEnemies;
+        spawner.maxAlive=maxAliveEnemies;
+        spawner.spawnInterval=1.2f;
+        spawner.batchSize=2;
         var hud = sys.AddComponent<HUD>();
         hud.font = hudFont;
         DamagePopup.CustomFont = hudFont;

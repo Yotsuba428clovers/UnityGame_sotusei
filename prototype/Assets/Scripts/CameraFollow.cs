@@ -16,8 +16,13 @@ public class CameraFollow : MonoBehaviour
     float yaw, pitch = 18f, shakeTime, shakeMag;
     Vector3 smoothed;
     bool init;
+    Camera view;
+    float baseFov, punch, punchRemaining;
 
-    void Awake() { instance = this; }
+    void Awake() { instance = this; view=GetComponent<Camera>(); if(view!=null)baseFov=view.fieldOfView; }
+
+    public static void Punch(float amount,float seconds)
+    {if(instance!=null){instance.punch=amount;instance.punchRemaining=seconds;}}
 
     public static void Shake(float magnitude, float time)
     {
@@ -32,6 +37,11 @@ public class CameraFollow : MonoBehaviour
         if (input == null) input = target.GetComponent<PlayerInputs>();
 
         float dt = Time.unscaledDeltaTime;
+        if(view!=null)
+        {
+            punchRemaining=Mathf.Max(0,punchRemaining-dt);
+            view.fieldOfView=Mathf.Lerp(view.fieldOfView,baseFov-(punchRemaining>0?punch:0),1-Mathf.Exp(-9*dt));
+        }
         if (input != null)
         {
             Vector2 l = input.Look;
@@ -54,4 +64,5 @@ public class CameraFollow : MonoBehaviour
         }
         transform.SetPositionAndRotation(pos, rot);
     }
+    void OnDestroy(){if(instance==this)instance=null;}
 }

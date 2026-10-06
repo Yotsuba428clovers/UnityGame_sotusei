@@ -8,6 +8,10 @@ using UnityEngine;
 // 氷の必殺技: 凍結(動けず攻撃不可・ノックバックなし)
 public class Enemy : MonoBehaviour
 {
+    public enum AttackStyle { Melee, GroundSlam }
+    public AttackStyle attackStyle;
+    [Min(.5f)] public float slamRadius=3.6f;
+    public bool showAttackWarning=true;
     public static readonly List<Enemy> All = new List<Enemy>();
     public static Enemy Boss;
 
@@ -22,6 +26,17 @@ public class Enemy : MonoBehaviour
     public float attackCooldown = 1.4f;
     public float attackWindup = 0.4f;
     public float attackRecovery = 0.4f;   // ダメージ判定の後、動き出すまでの硬直(攻撃モーションの後半の長さ)
+
+    [Header("攻撃エフェクト")]
+    [Tooltip("攻撃が振り下ろされる瞬間に生成するPrefab。未設定なら表示しません。")]
+    public GameObject attackFx;
+    [Tooltip("生成位置の基準。未設定なら敵自身。手や武器のTransformを指定できます。")]
+    public Transform attackFxOrigin;
+    [Tooltip("基準Transformからのローカル位置オフセット。")]
+    public Vector3 attackFxOffset = new Vector3(0f, 1f, 1f);
+    [Tooltip("基準Transformからの回転オフセット（度）。")]
+    public Vector3 attackFxRotation = Vector3.zero;
+    [Min(0.01f)] public float attackFxScale = 1f;
 
     [Header("属性")]
     public Element weakElement = Element.Fire;
@@ -50,9 +65,13 @@ public class Enemy : MonoBehaviour
     Collider[] cols;
     Animator anim;
     bool hasSpeedParam;
+    CombatPulse activeWarning;
+    Material markerMaterial;
 
     void OnEnable() { All.Add(this); }
-    void OnDisable() { All.Remove(this); if (Boss == this) Boss = null; }
+    void OnDisable() { All.Remove(this); if (Boss == this) Boss = null; ClearWarning(); }
+    void ClearWarning(){if(activeWarning!=null)Destroy(activeWarning.gameObject);activeWarning=null;}
+    void OnDestroy(){foreach(var material in mats)if(material!=null)Destroy(material);if(markerMaterial!=null)Destroy(markerMaterial);}
 
     // Colliderが無いPrefabでも攻撃が当たるように、見た目の大きさに合わせて自動で付ける
     void EnsureCollider()
@@ -88,13 +107,18 @@ public class Enemy : MonoBehaviour
         }
 
         // 弱点属性マーカー(頭上の球)
-        var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
         Destroy(marker.GetComponent<Collider>());
         marker.transform.SetParent(transform, false);
-        marker.transform.localPosition = new Vector3(0f, 2.5f, 0f);
-        marker.transform.localScale = Vector3.one * 0.35f;
+        var renderers=GetComponentsInChildren<Renderer>();
+        float top=transform.position.y+2f;
+        foreach(var renderer in renderers)if(renderer.gameObject!=marker)top=Mathf.Max(top,renderer.bounds.max.y);
+        marker.transform.position=new Vector3(transform.position.x,top+.35f,transform.position.z);
+        marker.transform.rotation=Quaternion.Euler(45,0,45);
+        marker.transform.localScale = Vector3.one * (.16f/Mathf.Max(.01f,transform.lossyScale.x));
         var mm = new Material(Shader.Find("Sprites/Default"));
         mm.color = ElementUtil.GetColor(weakElement);
+        markerMaterial=mm;
         marker.GetComponent<Renderer>().material = mm;
     }
 
@@ -148,6 +172,8 @@ public class Enemy : MonoBehaviour
     // 診断用: 先頭の敵だけ、1秒ごとにアニメの状態を出力
     void DebugAnim(float walkSpeed)
     {
+        if (anim == null || anim.runtimeAnimatorController == null || All.Count == 0 || All[0] != this || Time.time < nextDebug) return;
+        nextDebug = Time.time + 1f;
         var st = anim.GetCurrentAnimatorStateInfo(0);
         var clips = anim.GetCurrentAnimatorClipInfo(0);
         Debug.Log("[EnemyAnim] clip=" + (clips.Length > 0 ? clips[0].clip.name : "none")
@@ -177,16 +203,33 @@ public class Enemy : MonoBehaviour
     {
         attacking = true;
         int token = attackToken;
+        Vector3 impactPosition=transform.position;
         nextAttack = Time.time + attackCooldown + Random.Range(0f, 0.5f);
         warn = true;
         AnimHelper.Trigger(anim, "Attack");
+        CombatPresentation.Sound(2,transform.position);
+        if(showAttackWarning)
+            activeWarning=CombatPulse.Create(attackStyle==AttackStyle.GroundSlam?impactPosition:impactPosition+transform.forward*attackRange*.5f,
+                new Color(1,.32f,.13f),attackStyle==AttackStyle.GroundSlam?slamRadius:attackRange*.65f,attackWindup,true);
         yield return new WaitForSeconds(attackWindup);   // 攻撃モーションの「当たる瞬間」まで
+        ClearWarning();
         warn = false;
         if (!IsDead && token == attackToken && player != null)
         {
-            Vector3 d = player.transform.position - transform.position;
+            if (attackFx != null)
+            {
+                Transform origin = attackFxOrigin != null ? attackFxOrigin : transform;
+                Fx.Play(attackFx, origin.TransformPoint(attackFxOffset),
+                    origin.rotation * Quaternion.Euler(attackFxRotation), Mathf.Max(0.01f, attackFxScale));
+            }
+            bool slam=attackStyle==AttackStyle.GroundSlam;
+            CombatPresentation.Sound(slam?3:0,transform.position);
+            CombatPulse.Create(slam?impactPosition:transform.position+transform.forward,new Color(1,.58f,.23f),slam?slamRadius:1.2f,slam?.5f:.22f);
+            if(slam && Camera.main!=null && Vector3.Distance(Camera.main.transform.position,impactPosition)<20)
+                CameraFollow.Shake(.16f,.22f);
+            Vector3 d = player.transform.position - (slam?impactPosition:transform.position);
             d.y = 0f;
-            if (d.magnitude <= attackRange + 0.6f) player.TakeDamage(attackDamage);
+            if (d.magnitude <= (slam?slamRadius:attackRange+0.6f)) player.TakeDamage(attackDamage);
         }
         yield return new WaitForSeconds(attackRecovery);   // モーションの残りが終わるまで動かない
         attacking = false;
@@ -199,6 +242,7 @@ public class Enemy : MonoBehaviour
         frozenUntil = Time.time + (isBoss ? duration * 0.3f : duration);
         stunUntil = Mathf.Max(stunUntil, frozenUntil);
         attackToken++;            // 攻撃の溜めをキャンセル
+        ClearWarning();
         knockVel = Vector3.zero;
     }
 
@@ -240,11 +284,13 @@ public class Enemy : MonoBehaviour
             case Element.Lightning:
                 stunUntil = Mathf.Max(stunUntil, Time.time + (isBoss ? 0.2f : 0.6f));
                 attackToken++;
+                ClearWarning();
                 break;
             case Element.Wind:
                 dist *= 1.8f;
                 stunUntil = Mathf.Max(stunUntil, Time.time + (isBoss ? 0.1f : 0.25f));
                 attackToken++;
+                ClearWarning();
                 break;
         }
         if (dist > 0.01f) knockVel = knockback.normalized * Mathf.Sqrt(2f * 25f * dist);
@@ -266,6 +312,7 @@ public class Enemy : MonoBehaviour
     {
         if (IsDead) return;
         IsDead = true;
+        ClearWarning();
         All.Remove(this);
         if (Boss == this) Boss = null;
         foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;

@@ -7,6 +7,7 @@ public class EnemySpawner : MonoBehaviour
     public Transform player;
     public GameObject enemyPrefab;
     public GameObject bossPrefab;
+    public GameObject[] additionalEnemyPrefabs;
 
     public int maxAlive = 45;
     public float spawnInterval = 0.35f;
@@ -17,6 +18,7 @@ public class EnemySpawner : MonoBehaviour
 
     float nextSpawn;
     bool bossSpawned;
+    int spawnCount;
 
     void Start()
     {
@@ -49,6 +51,11 @@ public class EnemySpawner : MonoBehaviour
         Vector3 pos = new Vector3(player.position.x + c.x, player.position.y, player.position.z + c.y);
 
         GameObject prefab = boss ? bossPrefab : enemyPrefab;
+        if(!boss && additionalEnemyPrefabs!=null && additionalEnemyPrefabs.Length>0 && ++spawnCount%3==0)
+        {
+            var alternate=additionalEnemyPrefabs[Random.Range(0,additionalEnemyPrefabs.Length)];
+            if(alternate!=null)prefab=alternate;
+        }
         GameObject go = prefab != null ? Instantiate(prefab, pos, Quaternion.identity) : CreateDefault(pos, boss);
 
         Enemy e = go.GetComponent<Enemy>();

@@ -1,0 +1,36 @@
+{
+  "ExportTimestamp": "2026-10-06 20:22:47",
+  "Context": {
+    "sceneType": "editor",
+    "sceneName": "prototype",
+    "nodeCount": 1,
+    "maxDepth": 0
+  },
+  "Hierarchy": [
+    {
+      "sceneName": "prototype",
+      "stats": {
+        "rootCount": 1,
+        "nodeCount": 1,
+        "maxDepth": 0
+      },
+      "roots": [
+        {
+          "name": "Cube",
+          "isActive": true,
+          "components": [
+            "Transform",
+            "MeshFilter",
+            "BoxCollider",
+            "MeshRenderer"
+          ],
+          "siblingIndex": 2,
+          "tag": "Untagged",
+          "layer": 0,
+          "path": "Cube",
+          "children": []
+        }
+      ]
+    }
+  ]
+}
