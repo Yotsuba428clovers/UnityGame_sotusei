@@ -21,6 +21,7 @@ public class Enemy : MonoBehaviour
     public float attackDamage = 8f;
     public float attackCooldown = 1.4f;
     public float attackWindup = 0.4f;
+    public float attackRecovery = 0.4f;   // ダメージ判定の後、動き出すまでの硬直(攻撃モーションの後半の長さ)
 
     [Header("属性")]
     public Element weakElement = Element.Fire;
@@ -47,6 +48,8 @@ public class Enemy : MonoBehaviour
     int attackToken;
     Vector3 lastHitDir;   // 最後に受けた攻撃の方向
     Collider[] cols;
+    Animator anim;
+    bool hasSpeedParam;
 
     void OnEnable() { All.Add(this); }
     void OnDisable() { All.Remove(this); if (Boss == this) Boss = null; }
@@ -73,6 +76,9 @@ public class Enemy : MonoBehaviour
         EnsureCollider();
         if (isBoss) Boss = this;
         player = FindFirstObjectByType<PlayerCombat>();
+        anim = GetComponentInChildren<Animator>();
+        if (anim != null) anim.applyRootMotion = false;   // モデルだけが動いて、当たり判定が置いていかれるのを防ぐ
+        hasSpeedParam = AnimHelper.Has(anim, "Speed", AnimatorControllerParameterType.Float);
 
         foreach (var r in GetComponentsInChildren<Renderer>())
         {
@@ -105,7 +111,12 @@ public class Enemy : MonoBehaviour
         }
 
         UpdateVisual();
-        if (player == null || player.IsDead) return;
+        if (anim != null) anim.speed = Time.time < frozenUntil ? 0f : (Time.time < slowUntil ? 0.55f : 1f);
+        if (player == null || player.IsDead)
+        {
+            if (hasSpeedParam) anim.SetFloat("Speed", 0f, 0.1f, Time.deltaTime);
+            return;
+        }
 
         Vector3 to = player.transform.position - transform.position;
         to.y = 0f;
@@ -116,16 +127,35 @@ public class Enemy : MonoBehaviour
         Vector3 move = knockVel + Separation();
         knockVel = Vector3.MoveTowards(knockVel, Vector3.zero, 25f * Time.deltaTime);
 
+        float walkSpeed = 0f;
         if (!stunned && !attacking)
         {
             float speed = moveSpeed * (Time.time < slowUntil ? 0.45f : 1f);
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 10f * Time.deltaTime);
-            if (dist > attackRange * 0.8f) move += dir * speed;
+            if (dist > attackRange * 0.8f)
+            {
+                move += dir * speed;
+                walkSpeed = speed;
+            }
             if (dist <= attackRange && Time.time >= nextAttack) StartCoroutine(AttackRoutine());
         }
+        if (hasSpeedParam) anim.SetFloat("Speed", walkSpeed, 0.1f, Time.deltaTime);
+        DebugAnim(walkSpeed);
         transform.position += move * Time.deltaTime;
     }
+    float nextDebug;
 
+    // 診断用: 先頭の敵だけ、1秒ごとにアニメの状態を出力
+    void DebugAnim(float walkSpeed)
+    {
+        var st = anim.GetCurrentAnimatorStateInfo(0);
+        var clips = anim.GetCurrentAnimatorClipInfo(0);
+        Debug.Log("[EnemyAnim] clip=" + (clips.Length > 0 ? clips[0].clip.name : "none")
+            + "  inTransition=" + anim.IsInTransition(0)
+            + "  layers=" + anim.layerCount
+            + "  SpeedParam=" + (hasSpeedParam ? anim.GetFloat("Speed").ToString("0.00") : "-")
+            + "  normalizedTime=" + st.normalizedTime.ToString("0.00"), this);
+    }
     // 敵同士が重なりすぎないように
     Vector3 Separation()
     {
@@ -149,7 +179,8 @@ public class Enemy : MonoBehaviour
         int token = attackToken;
         nextAttack = Time.time + attackCooldown + Random.Range(0f, 0.5f);
         warn = true;
-        yield return new WaitForSeconds(attackWindup);
+        AnimHelper.Trigger(anim, "Attack");
+        yield return new WaitForSeconds(attackWindup);   // 攻撃モーションの「当たる瞬間」まで
         warn = false;
         if (!IsDead && token == attackToken && player != null)
         {
@@ -157,6 +188,7 @@ public class Enemy : MonoBehaviour
             d.y = 0f;
             if (d.magnitude <= attackRange + 0.6f) player.TakeDamage(attackDamage);
         }
+        yield return new WaitForSeconds(attackRecovery);   // モーションの残りが終わるまで動かない
         attacking = false;
     }
 
@@ -283,6 +315,7 @@ public class Enemy : MonoBehaviour
     }
 
     void UpdateVisual()
+
     {
         for (int i = 0; i < mats.Count; i++)
         {
@@ -297,3 +330,4 @@ public class Enemy : MonoBehaviour
         }
     }
 }
+
