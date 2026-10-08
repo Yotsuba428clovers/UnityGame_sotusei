@@ -18,6 +18,13 @@ public class PlayerController : MonoBehaviour
 
     public bool IsDodging { get; private set; }
     public bool Locked { get; set; }
+    public bool IsStaggered { get { return Time.time < staggerUntil; } }
+    float staggerUntil;
+
+    public void StaggerFor(float duration)
+    {
+        staggerUntil = Mathf.Max(staggerUntil, Time.time + duration);
+    }
 
     CharacterController cc;
     PlayerInputs input;
@@ -83,9 +90,10 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        Vector3 dir = Locked ? Vector3.zero : InputDirection();
+        bool blocked = Locked || IsStaggered;
+        Vector3 dir = blocked ? Vector3.zero : InputDirection();
 
-        if (!Locked && input.Dodge && !IsDodging && Time.time >= nextDodge)
+        if (!blocked && input.Dodge && !IsDodging && Time.time >= nextDodge)
         {
             nextDodge = Time.time + dodgeCooldown;
             BeginDodge(dir, dodgeSpeed, dodgeDuration);
@@ -101,7 +109,7 @@ public class PlayerController : MonoBehaviour
             }
             vel = dodgeDir * dodgeSpeedNow;
         }
-        else if (!Locked)
+        else if (!blocked)
         {
             float mul = Time.time < slowUntil ? slowMul : 1f;
             vel = dir * moveSpeed * mul;

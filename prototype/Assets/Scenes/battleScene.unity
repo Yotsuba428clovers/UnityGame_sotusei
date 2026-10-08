@@ -540,7 +540,7 @@ MonoBehaviour:
     type: 3}
   fxScale: 3
   hudFont: {fileID: 12800000, guid: d6ee2589421d3ca4585ab89c2f7a6a04, type: 3}
-  fxRotation: {x: 90, y: 0, z: 90}
+  fxRotation: {x: 90, y: 45, z: 90}
   specialRotation: {x: 90, y: 0, z: 90}
   switchRotation: {x: 90, y: 0, z: 90}
 --- !u!4 &736851697

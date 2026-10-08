@@ -1,0 +1,1 @@
+ return EnemyDeathSetup.BuildAll();

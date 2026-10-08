@@ -137,6 +137,7 @@ public static class SkeletonPrefabSetup
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }
         AssetDatabase.SaveAssets();
+        EnemyDeathSetup.Build("Skeleton");
         Selection.activeObject = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
         return "Skeleton_Prefab updated. Vertices="+vertices.Length+", maximum skin transfer distance="+maxDistance+", loop="+walk.isLooping;
     }

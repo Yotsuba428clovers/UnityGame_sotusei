@@ -1,0 +1,7 @@
+var p=UnityEngine.Object.FindFirstObjectByType<PlayerCombat>();var pc=p.GetComponent<PlayerController>();var anim=p.GetComponentInChildren<UnityEngine.Animator>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+var before=p.Hp;int frame=UnityEngine.Time.frameCount;int stage=0;float start=0;bool dodgeOk=false;UnityEditor.EditorApplication.CallbackFunction watch=null;
+watch=()=>{if(!UnityEditor.EditorApplication.isPlaying){UnityEditor.EditorApplication.update-=watch;return;}if(UnityEditor.EditorApplication.isPaused||UnityEngine.Time.frameCount<frame+3)return;
+if(stage==0){start=UnityEngine.Time.time;typeof(PlayerCombat).GetField("invincibleUntil",flags).SetValue(p,0f);pc.BeginDodge(UnityEngine.Vector3.forward,0,.25f);p.TakeDamage(32);dodgeOk=p.Hp==before;stage=1;}
+if(stage==1&&UnityEngine.Time.time-start>.5f){p.TakeDamage(10000);stage=2;start=UnityEngine.Time.time;}
+if(stage==2&&UnityEngine.Time.time-start>.3f){var result="Dodge protected="+dodgeOk+" hp="+p.Hp+" dead="+p.IsDead+" locked="+pc.Locked+" deathMotion="+anim.GetCurrentAnimatorStateInfo(0).IsName("Die")+" GameOver="+(GameManager.Instance.State==GameManager.GameState.GameOver);System.IO.File.WriteAllText("C:/Users/G2320/UnityGame_sotusei/prototype/.uloop/outputs/player-damage-edge-results.txt",result);UnityEditor.EditorApplication.update-=watch;UnityEditor.EditorApplication.isPaused=true;}};
+UnityEditor.EditorApplication.update+=watch;return "Dodge and lethal verification armed";

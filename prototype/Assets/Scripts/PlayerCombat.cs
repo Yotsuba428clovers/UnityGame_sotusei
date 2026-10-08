@@ -11,6 +11,10 @@ public class PlayerCombat : MonoBehaviour
     public float maxGauge = 100f;
     public float gaugePerHit = 3f;
 
+    [Header("被ダメージリアクション")]
+    [Min(0f)] public float damageRecovery = 0.65f;
+    [Min(0f)] public float damageInvincibility = 0.75f;
+
     [Header("通常攻撃(コンボ)")]
     public float lightDamage = 20f;
     public int comboLength = 4;
@@ -98,6 +102,7 @@ public class PlayerCombat : MonoBehaviour
     void Update()
     {
         if (IsDead) return;
+        if (controller.IsStaggered) return;
         if (hasAttackSpeedParam) anim.SetFloat("AttackSpeed", AttackSpeed);
 
         if (!inSpecial)   // 必殺技の溜め中は属性を切り替えられない
@@ -337,7 +342,7 @@ public class PlayerCombat : MonoBehaviour
     // ---------- 被ダメージ ----------
     public void TakeDamage(float dmg)
     {
-        if (IsDead || Time.time < invincibleUntil) return;
+        if (IsDead || dmg <= 0f || Time.time < invincibleUntil) return;
         if (controller.IsDodging)
         {
             Gauge = Mathf.Min(maxGauge, Gauge + 8f);   // ジャスト回避でゲージ回復
@@ -346,10 +351,19 @@ public class PlayerCombat : MonoBehaviour
         }
         Hp -= dmg;
         CombatPresentation.Impact(transform.position,new Color(1,.35f,.2f),false);
-        invincibleUntil = Time.time + 0.25f;
+        CombatPresentation.PlayerDamage();
+        invincibleUntil = Time.time + Mathf.Max(damageRecovery, damageInvincibility);
         CameraFollow.Shake(0.2f, 0.15f);
         Rumble.Play(0.8f, 0.4f, 0.25f);
-        if (Hp <= 0f) Die();
+        StopAllCoroutines();
+        inSpecial = false;
+        combo = bufferedType = 0;
+        bufferedUntil = 0f;
+        if (Hp <= 0f) { Die(); return; }
+        nextActionTime = Time.time + damageRecovery;
+        controller.StaggerFor(damageRecovery);
+        if (anim != null && anim.HasState(0, Animator.StringToHash("Base Layer.Damage")))
+            anim.CrossFadeInFixedTime("Base Layer.Damage", 0.04f, 0, 0f);
     }
 
     void Die()

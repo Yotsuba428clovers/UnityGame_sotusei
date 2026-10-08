@@ -1,0 +1,70 @@
+DeathCheck_Skeleton_Prefab dead=True duration=2.533334 collidersOff=True
+DeathCheck_Stone_Prefab dead=True duration=3 collidersOff=True
+DeathCheck_Stone_Raider dead=True duration=3 collidersOff=True
+t=0.00 DeathCheck_Skeleton_Prefab death=False speed=1 headY=2.44 stationary=True
+t=0.00 DeathCheck_Stone_Prefab death=False speed=1 headY=6.11 stationary=True
+t=0.00 DeathCheck_Stone_Raider death=False speed=1 headY=3.06 stationary=True
+t=0.21 DeathCheck_Skeleton_Prefab death=True speed=1 headY=2.42 stationary=True
+t=0.21 DeathCheck_Stone_Prefab death=True speed=1 headY=5.26 stationary=True
+t=0.21 DeathCheck_Stone_Raider death=True speed=1 headY=2.63 stationary=True
+t=0.41 DeathCheck_Skeleton_Prefab death=True speed=1 headY=3.27 stationary=True
+t=0.41 DeathCheck_Stone_Prefab death=True speed=1 headY=5.25 stationary=True
+t=0.41 DeathCheck_Stone_Raider death=True speed=1 headY=2.62 stationary=True
+t=0.60 DeathCheck_Skeleton_Prefab death=True speed=1 headY=3.22 stationary=True
+t=0.60 DeathCheck_Stone_Prefab death=True speed=1 headY=5.69 stationary=True
+t=0.60 DeathCheck_Stone_Raider death=True speed=1 headY=2.85 stationary=True
+t=0.80 DeathCheck_Skeleton_Prefab death=True speed=1 headY=2.13 stationary=True
+t=0.80 DeathCheck_Stone_Prefab death=True speed=1 headY=5.90 stationary=True
+t=0.80 DeathCheck_Stone_Raider death=True speed=1 headY=2.95 stationary=True
+t=1.01 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.31 stationary=True
+t=1.01 DeathCheck_Stone_Prefab death=True speed=1 headY=5.98 stationary=True
+t=1.01 DeathCheck_Stone_Raider death=True speed=1 headY=2.99 stationary=True
+t=1.21 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.28 stationary=True
+t=1.21 DeathCheck_Stone_Prefab death=True speed=1 headY=5.91 stationary=True
+t=1.21 DeathCheck_Stone_Raider death=True speed=1 headY=2.96 stationary=True
+t=1.41 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.26 stationary=True
+t=1.41 DeathCheck_Stone_Prefab death=True speed=1 headY=5.60 stationary=True
+t=1.41 DeathCheck_Stone_Raider death=True speed=1 headY=2.80 stationary=True
+t=1.61 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.21 stationary=True
+t=1.61 DeathCheck_Stone_Prefab death=True speed=1 headY=4.21 stationary=True
+t=1.61 DeathCheck_Stone_Raider death=True speed=1 headY=2.10 stationary=True
+t=1.80 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.13 stationary=True
+t=1.80 DeathCheck_Stone_Prefab death=True speed=1 headY=4.41 stationary=True
+t=1.80 DeathCheck_Stone_Raider death=True speed=1 headY=2.21 stationary=True
+t=2.00 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.13 stationary=True
+t=2.00 DeathCheck_Stone_Prefab death=True speed=1 headY=3.48 stationary=True
+t=2.00 DeathCheck_Stone_Raider death=True speed=1 headY=1.74 stationary=True
+t=2.20 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.10 stationary=True
+t=2.20 DeathCheck_Stone_Prefab death=True speed=1 headY=0.81 stationary=True
+t=2.20 DeathCheck_Stone_Raider death=True speed=1 headY=0.40 stationary=True
+t=2.40 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.10 stationary=True
+t=2.40 DeathCheck_Stone_Prefab death=True speed=1 headY=1.10 stationary=True
+t=2.40 DeathCheck_Stone_Raider death=True speed=1 headY=0.55 stationary=True
+t=2.61 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.12 stationary=True
+t=2.61 DeathCheck_Stone_Prefab death=True speed=1 headY=1.19 stationary=True
+t=2.61 DeathCheck_Stone_Raider death=True speed=1 headY=0.60 stationary=True
+t=2.80 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.11 stationary=True
+t=2.80 DeathCheck_Stone_Prefab death=True speed=1 headY=1.11 stationary=True
+t=2.80 DeathCheck_Stone_Raider death=True speed=1 headY=0.55 stationary=True
+t=3.00 DeathCheck_Skeleton_Prefab death=True speed=1 headY=0.04 stationary=True
+t=3.00 DeathCheck_Stone_Prefab death=True speed=1 headY=0.90 stationary=True
+t=3.00 DeathCheck_Stone_Raider death=True speed=1 headY=0.45 stationary=True
+t=3.20 index=0 removed
+t=3.20 DeathCheck_Stone_Prefab death=True speed=1 headY=0.88 stationary=True
+t=3.20 DeathCheck_Stone_Raider death=True speed=1 headY=0.44 stationary=True
+t=3.40 index=0 removed
+t=3.40 DeathCheck_Stone_Prefab death=True speed=1 headY=0.48 stationary=True
+t=3.40 DeathCheck_Stone_Raider death=True speed=1 headY=0.24 stationary=True
+t=3.61 index=0 removed
+t=3.61 index=1 removed
+t=3.61 index=2 removed
+t=3.80 index=0 removed
+t=3.80 index=1 removed
+t=3.80 index=2 removed
+t=4.00 index=0 removed
+t=4.00 index=1 removed
+t=4.00 index=2 removed
+t=4.20 index=0 removed
+t=4.20 index=1 removed
+t=4.20 index=2 removed
+PASS stayedInDeath=True allRemoved=True killsAdded=3

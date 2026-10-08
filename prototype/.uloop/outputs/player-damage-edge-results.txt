@@ -1,0 +1,1 @@
+Dodge protected=True hp=0 dead=True locked=True deathMotion=True GameOver=True

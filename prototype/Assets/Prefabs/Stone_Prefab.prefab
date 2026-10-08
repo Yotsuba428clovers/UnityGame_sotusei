@@ -641,9 +641,9 @@ MonoBehaviour:
   bodyRadius: 0.5
   attackRange: 7
   attackDamage: 32
-  attackCooldown: 3.5
-  attackWindup: 1.95
-  attackRecovery: 1.2000002
+  attackCooldown: 3.3333335
+  attackWindup: 1.4166667
+  attackRecovery: 1.5666667
   attackFx: {fileID: 1477782971762948, guid: 8e2edb2a8a19e674f80d0fb19fe5c051, type: 3}
   attackFxOrigin: {fileID: 1684237471735920283}
   attackFxOffset: {x: 0, y: 1, z: 1}
@@ -653,6 +653,7 @@ MonoBehaviour:
   weakMultiplier: 1.5
   resistMultiplier: 0.6
   isBoss: 1
+  deathAnimation: {fileID: 7400000, guid: 8f43abd890c363041bb0eedc2e2698b2, type: 2}
   deathLaunchSpeed: 14
   deathLaunchUp: 9
   deathSpin: 720

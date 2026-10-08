@@ -1,0 +1,18 @@
+var controller=UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>("Assets/animetors/Sample Animator Controller.controller");
+var machine=controller.layers[0].stateMachine;
+var run=System.Linq.Enumerable.First(machine.states).state;
+if(!System.Linq.Enumerable.Any(controller.parameters,p=>p.name=="Speed"))controller.AddParameter("Speed",UnityEngine.AnimatorControllerParameterType.Float);
+if(!System.Linq.Enumerable.Any(controller.parameters,p=>p.name=="Die"))controller.AddParameter("Die",UnityEngine.AnimatorControllerParameterType.Trigger);
+var idleClip=System.Linq.Enumerable.First(System.Linq.Enumerable.OfType<UnityEngine.AnimationClip>(UnityEditor.AssetDatabase.LoadAllAssetsAtPath("Assets/UnityChan/Animations/unitychan_WAIT00.fbx")),c=>!c.name.StartsWith("__"));
+var damageClip=System.Linq.Enumerable.First(System.Linq.Enumerable.OfType<UnityEngine.AnimationClip>(UnityEditor.AssetDatabase.LoadAllAssetsAtPath("Assets/UnityChan/Animations/unitychan_DAMAGED00.fbx")),c=>!c.name.StartsWith("__"));
+var deathClip=System.Linq.Enumerable.First(System.Linq.Enumerable.OfType<UnityEngine.AnimationClip>(UnityEditor.AssetDatabase.LoadAllAssetsAtPath("Assets/UnityChan/Animations/unitychan_DAMAGED01.fbx")),c=>!c.name.StartsWith("__"));
+var idle=machine.AddState("Idle");idle.motion=idleClip;
+var damage=machine.AddState("Damage");damage.motion=damageClip;damage.speed=damageClip.length/.59f;
+var death=machine.AddState("Die");death.motion=deathClip;
+var start=idle.AddTransition(run);start.hasExitTime=false;start.duration=.12f;start.hasFixedDuration=true;start.AddCondition(UnityEditor.Animations.AnimatorConditionMode.Greater,.1f,"Speed");
+var stop=run.AddTransition(idle);stop.hasExitTime=false;stop.duration=.12f;stop.hasFixedDuration=true;stop.AddCondition(UnityEditor.Animations.AnimatorConditionMode.Less,.1f,"Speed");
+var recover=damage.AddTransition(idle);recover.hasExitTime=true;recover.exitTime=1;recover.duration=.06f;recover.hasFixedDuration=true;
+var die=machine.AddAnyStateTransition(death);die.hasExitTime=false;die.duration=.06f;die.hasFixedDuration=true;die.canTransitionToSelf=false;die.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If,0,"Die");
+machine.defaultState=idle;
+UnityEditor.EditorUtility.SetDirty(controller);UnityEditor.AssetDatabase.SaveAssets();
+return "Configured player: Idle/Run, Damage="+damageClip.name+" human="+damageClip.humanMotion+" duration=0.65; Die="+deathClip.name;

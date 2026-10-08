@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: c15963e198b542b408c4b94df5b733a0
+guid: 206c114350376b04ba6df58145fdf72c
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -33,11 +33,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Armature|Armature|Armature|Armature|Charged_Ground_Slam|baselayer
-      takeName: Armature|Armature|Armature|Armature|Charged_Ground_Slam|baselayer
-      internalID: 8571929441669217060
+      name: Armature|Armature|Scene
+      takeName: Armature|Armature|Scene
+      internalID: -5005298213620940126
       firstFrame: 0
-      lastFrame: 180
+      lastFrame: 170
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
@@ -120,7 +120,7 @@ ModelImporter:
     legStretch: 0.05
     feetSpacing: 0
     globalScale: 1
-    rootMotionBoneName: char1
+    rootMotionBoneName: 
     hasTranslationDoF: 0
     hasExtraRoot: 0
     skeletonHasParents: 1
@@ -128,7 +128,7 @@ ModelImporter:
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 2
   humanoidOversampling: 1
-  avatarSetup: 1
+  avatarSetup: 0
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
   importBlendShapeDeformPercent: 1
   remapMaterialsIfMaterialImportModeIsNone: 0

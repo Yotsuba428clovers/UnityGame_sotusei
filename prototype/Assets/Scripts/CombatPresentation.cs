@@ -14,6 +14,8 @@ public class CombatPresentation : MonoBehaviour
     float nextWarning,nextSlam;
     Color flashColor;
     Image flash;
+    Image damageFlash;
+    float damageAlpha;
     bool ownsTime;
     void Awake()
     {
@@ -27,6 +29,11 @@ public class CombatPresentation : MonoBehaviour
         var image=new GameObject("Flash",typeof(RectTransform),typeof(Image));image.transform.SetParent(go.transform,false);
         flash=image.GetComponent<Image>();flash.raycastTarget=false;
         var r=flash.rectTransform;r.anchorMin=Vector2.zero;r.anchorMax=Vector2.one;r.sizeDelta=Vector2.zero;flash.color=Color.clear;
+        var damage=new GameObject("Damage Flash",typeof(RectTransform),typeof(Image));
+        damage.transform.SetParent(go.transform,false);
+        damageFlash=damage.GetComponent<Image>();damageFlash.raycastTarget=false;
+        var dr=damageFlash.rectTransform;dr.anchorMin=Vector2.zero;dr.anchorMax=Vector2.one;dr.sizeDelta=Vector2.zero;
+        damageFlash.color=Color.clear;
     }
     static AudioClip Tone(string name,float seconds,float start,float end,float noise)
     {
@@ -58,6 +65,13 @@ public class CombatPresentation : MonoBehaviour
     }
     public static void HitStop(float seconds)
     {if(Instance!=null)Instance.hitUntil=Mathf.Max(Instance.hitUntil,Time.unscaledTime+seconds);}
+    public static void PlayerDamage()
+    {
+        var self=Instance;if(self==null)return;
+        HitStop(.08f);
+        self.damageAlpha=.24f;
+        self.damageFlash.color=new Color(.85f,.015f,.025f,self.damageAlpha);
+    }
     public static void Special(Element element,Vector3 position)
     {
         var self=Instance;if(self==null)return;
@@ -78,6 +92,8 @@ public class CombatPresentation : MonoBehaviour
         else if(ownsTime){Time.timeScale=1;ownsTime=false;}
         flashAlpha=Mathf.MoveTowards(flashAlpha,0,Time.unscaledDeltaTime*.45f);
         flash.color=new Color(flashColor.r,flashColor.g,flashColor.b,flashAlpha);
+        damageAlpha=Mathf.MoveTowards(damageAlpha,0,Time.unscaledDeltaTime*.8f);
+        damageFlash.color=new Color(.85f,.015f,.025f,damageAlpha);
     }
     void OnDestroy()
     {

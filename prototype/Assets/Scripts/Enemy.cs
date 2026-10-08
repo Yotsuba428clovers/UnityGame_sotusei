@@ -45,6 +45,7 @@ public class Enemy : MonoBehaviour
     public bool isBoss;
 
     [Header("やられ演出")]
+    public AnimationClip deathAnimation;
     public float deathLaunchSpeed = 14f;   // 吹っ飛ぶ水平速度
     public float deathLaunchUp = 9f;       // 上方向の初速
     public float deathSpin = 720f;         // 回転速度(度/秒)
@@ -312,6 +313,9 @@ public class Enemy : MonoBehaviour
     {
         if (IsDead) return;
         IsDead = true;
+        StopAllCoroutines();
+        attacking = false;
+        warn = false;
         ClearWarning();
         All.Remove(this);
         if (Boss == this) Boss = null;
@@ -327,6 +331,26 @@ public class Enemy : MonoBehaviour
     IEnumerator DeathRoutine()
     {
         Vector3 s = transform.localScale;
+        if (deathAnimation != null && anim != null && anim.HasState(0, Animator.StringToHash("Base Layer.Die")))
+        {
+            anim.speed = 1f;
+            anim.applyRootMotion = false;
+            anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            foreach (var parameter in anim.parameters)
+                if (parameter.type == AnimatorControllerParameterType.Trigger) anim.ResetTrigger(parameter.nameHash);
+            anim.Play("Base Layer.Die", 0, 0f);
+            yield return new WaitForSeconds(deathAnimation.length + .25f);
+            const float fadeTime = .35f;
+            float elapsed = 0f;
+            while (elapsed < fadeTime)
+            {
+                elapsed += Time.deltaTime;
+                transform.localScale = s * (1f - Mathf.Clamp01(elapsed / fadeTime));
+                yield return null;
+            }
+            Destroy(gameObject);
+            yield break;
+        }
         float k = isBoss ? 0.3f : 1f;   // ボスは控えめに
         if (lastHitDir == Vector3.zero) lastHitDir = -transform.forward;
 

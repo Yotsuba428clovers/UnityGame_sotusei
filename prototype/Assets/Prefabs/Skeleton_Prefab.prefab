@@ -409,6 +409,7 @@ MonoBehaviour:
   weakMultiplier: 1.5
   resistMultiplier: 0.6
   isBoss: 0
+  deathAnimation: {fileID: 7400000, guid: f6884090a5df097468a0a215ad623887, type: 2}
   deathLaunchSpeed: 14
   deathLaunchUp: 9
   deathSpin: 720

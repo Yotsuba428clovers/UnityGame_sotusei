@@ -1,0 +1,10 @@
+var player=UnityEngine.Object.FindFirstObjectByType<PlayerCombat>();
+foreach(var e in UnityEngine.Object.FindObjectsByType<Enemy>(UnityEngine.FindObjectsSortMode.None))e.gameObject.SetActive(false);
+var prefab=UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.GameObject>("Assets/Prefabs/Stone_Prefab.prefab");
+var stone=UnityEngine.Object.Instantiate(prefab);stone.name="StoneAttackVerification";
+stone.transform.position=player.transform.position+new UnityEngine.Vector3(0,0,5);stone.transform.rotation=UnityEngine.Quaternion.Euler(0,180,0);
+var enemy=stone.GetComponent<Enemy>();enemy.attackDamage=0;enemy.moveSpeed=0;enemy.maxHp=100000;enemy.attackCooldown=5;
+var cam=UnityEngine.Camera.main;foreach(var b in cam.GetComponents<UnityEngine.MonoBehaviour>())b.enabled=false;
+cam.transform.position=stone.transform.position+new UnityEngine.Vector3(7,4,-8);cam.transform.LookAt(stone.transform.position+UnityEngine.Vector3.up*1.7f);
+UnityEngine.Time.timeScale=1;
+return "Scene="+stone.scene.path+" player="+player.name+" stone="+stone.transform.position;

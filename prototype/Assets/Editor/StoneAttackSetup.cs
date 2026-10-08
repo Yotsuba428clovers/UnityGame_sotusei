@@ -19,6 +19,24 @@ public static class StoneAttackSetup
         foreach(var asset in AssetDatabase.LoadAllAssetsAtPath("Assets/animetions/Stone_walking_Ani.fbx"))
             if(asset is AnimationClip c&&!c.name.StartsWith("__preview__")){walk=c;break;}
         if(attack==null||walk==null)throw new Exception("Stone animation clips missing");
+        // The attack FBX has Hips at its root; the prefab's walking rig has Armature/Hips.
+        var riggedAttack = new AnimationClip { name = "Stone Attack Rigged", frameRate = attack.frameRate };
+        foreach (var binding in AnimationUtility.GetCurveBindings(attack))
+        {
+            var mapped = binding;
+            mapped.path = string.IsNullOrEmpty(binding.path) ? "Armature" : "Armature/" + binding.path;
+            AnimationUtility.SetEditorCurve(riggedAttack, mapped, AnimationUtility.GetEditorCurve(attack, binding));
+        }
+        riggedAttack.EnsureQuaternionContinuity();
+        const string riggedPath = "Assets/animetions/Stone_Attack_Rigged.anim";
+        var existingAttack = AssetDatabase.LoadAssetAtPath<AnimationClip>(riggedPath);
+        if (existingAttack == null) { AssetDatabase.CreateAsset(riggedAttack, riggedPath); attack = riggedAttack; }
+        else
+        {
+            EditorUtility.CopySerialized(riggedAttack, existingAttack);
+            UnityEngine.Object.DestroyImmediate(riggedAttack);
+            attack = existingAttack;
+        }
         var controller=AssetDatabase.LoadAssetAtPath<AnimatorController>("Assets/animetors/Stone_Animetor.controller");
         var machine=controller.layers[0].stateMachine;
         foreach(var state in machine.states)machine.RemoveState(state.state);
@@ -43,13 +61,15 @@ public static class StoneAttackSetup
             if(animator==null)throw new Exception("Stone rigged Animator missing");
             animator.runtimeAnimatorController=controller;animator.applyRootMotion=false;
             var enemy=root.GetComponent<Enemy>();if(enemy==null)enemy=root.AddComponent<Enemy>();
-            enemy.attackWindup=attack.length*.65f;
+            enemy.attackWindup=attack.length*.5f;
             enemy.attackRecovery=attack.length-enemy.attackWindup+.15f;
             enemy.attackCooldown=attack.length+.5f;
             PrefabUtility.SaveAsPrefabAsset(root,prefabPath);
         }
         finally{PrefabUtility.UnloadPrefabContents(root);}
-        AssetDatabase.SaveAssets();Selection.activeObject=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        AssetDatabase.SaveAssets();
+        EnemyDeathSetup.Build("Stone");
+        Selection.activeObject=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
         return "Stone Attack configured; duration="+attack.length+" seconds, loop="+attack.isLooping;
     }
 }
