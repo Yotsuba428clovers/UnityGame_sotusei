@@ -12,7 +12,6 @@ public class PlayerCombat : MonoBehaviour
     public float gaugePerHit = 3f;
 
     [Header("被ダメージリアクション")]
-    [Min(0f)] public float damageRecovery = 0.65f;
     [Min(0f)] public float damageInvincibility = 0.75f;
 
     [Header("通常攻撃(コンボ)")]
@@ -95,13 +94,17 @@ public class PlayerCombat : MonoBehaviour
     void Start()
     {
         anim = GetComponentInChildren<Animator>();
+        foreach (var source in GetComponentsInChildren<AudioSource>())
+            source.gameObject.AddComponent<AudioVolumeChannel>().Configure(source, AudioVolumeChannel.Bus.Voice);
         hasAttackSpeedParam = AnimHelper.Has(anim, "AttackSpeed", AnimatorControllerParameterType.Float);
         ApplySwordColor();
     }
 
     void Update()
     {
+        if (SettingsMenu.BlocksGameplay) return;
         if (IsDead) return;
+        if (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Playing) return;
         if (controller.IsStaggered) return;
         if (hasAttackSpeedParam) anim.SetFloat("AttackSpeed", AttackSpeed);
 
@@ -120,6 +123,8 @@ public class PlayerCombat : MonoBehaviour
         int type = bufferedType;
         bufferedType = 0;
         bufferedUntil = 0f;
+        if (type > 0 && anim != null && anim.GetCurrentAnimatorStateInfo(0).IsName("Damage"))
+            anim.CrossFadeInFixedTime("Base Layer.Idle", .04f, 0);
         if (type == 1) LightAttack();
         else if (type == 2) HeavyAttack();
         else if (type == 3 && Gauge >= maxGauge) StartCoroutine(SpecialRoutine());
@@ -342,6 +347,8 @@ public class PlayerCombat : MonoBehaviour
     // ---------- 被ダメージ ----------
     public void TakeDamage(float dmg)
     {
+        if (SettingsMenu.IsOpen) return;
+        if (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Playing) return;
         if (IsDead || dmg <= 0f || Time.time < invincibleUntil) return;
         if (controller.IsDodging)
         {
@@ -352,28 +359,45 @@ public class PlayerCombat : MonoBehaviour
         Hp -= dmg;
         CombatPresentation.Impact(transform.position,new Color(1,.35f,.2f),false);
         CombatPresentation.PlayerDamage();
-        invincibleUntil = Time.time + Mathf.Max(damageRecovery, damageInvincibility);
+        invincibleUntil = Time.time + damageInvincibility;
         CameraFollow.Shake(0.2f, 0.15f);
         Rumble.Play(0.8f, 0.4f, 0.25f);
-        StopAllCoroutines();
-        inSpecial = false;
-        combo = bufferedType = 0;
-        bufferedUntil = 0f;
         if (Hp <= 0f) { Die(); return; }
-        nextActionTime = Time.time + damageRecovery;
-        controller.StaggerFor(damageRecovery);
-        if (anim != null && anim.HasState(0, Animator.StringToHash("Base Layer.Damage")))
+        if (!inSpecial && Time.time >= nextActionTime && anim != null && anim.HasState(0, Animator.StringToHash("Base Layer.Damage")))
             anim.CrossFadeInFixedTime("Base Layer.Damage", 0.04f, 0, 0f);
     }
 
     void Die()
     {
+        StopAllCoroutines();
         IsDead = true;
         Hp = 0f;
         controller.Locked = true;
         Rumble.Play(1f, 1f, 0.6f);
         AnimHelper.Trigger(anim, "Die");
         if (GameManager.Instance != null) GameManager.Instance.GameOver();
+    }
+
+    public void EndCombat()
+    {
+        StopAllCoroutines();
+        inSpecial = false;
+        bufferedType = 0;
+        bufferedUntil = 0;
+        controller.EndBattle();
+    }
+
+    public void CelebrateVictory()
+    {
+        EndCombat();
+        if (anim == null) anim = GetComponentInChildren<Animator>();
+        if (anim == null) return;
+        foreach (var parameter in anim.parameters)
+            if (parameter.type == AnimatorControllerParameterType.Trigger) anim.ResetTrigger(parameter.nameHash);
+        anim.speed = 1;
+        anim.applyRootMotion = false;
+        anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        if (anim.HasState(0, Animator.StringToHash("Base Layer.Win"))) anim.CrossFadeInFixedTime("Base Layer.Win", .15f, 0, 0f);
     }
 
     // ---------- エフェクト ----------

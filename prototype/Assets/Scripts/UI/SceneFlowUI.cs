@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class SceneFlowUI : MonoBehaviour
 {
@@ -20,7 +21,16 @@ public class SceneFlowUI : MonoBehaviour
     {
         Time.timeScale = 1f;
         origin = content.GetComponent<RectTransform>().anchoredPosition;
-        if (primaryButton != null) primaryButton.Select();
+        if (titleScreen)
+        {
+            if (primaryButton != null) primaryButton.Select();
+        }
+        else if (EventSystem.current != null)
+        {
+            // Battle buttons remain clickable, but pad Submit belongs to dodge.
+            EventSystem.current.sendNavigationEvents = false;
+            EventSystem.current.SetSelectedGameObject(null);
+        }
         StartCoroutine(Reveal());
     }
 

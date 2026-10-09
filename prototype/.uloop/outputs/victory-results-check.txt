@@ -1,0 +1,7 @@
+state=Cleared damageBlocked=True locked=True killed=1
+bossDeathPresent=True bossDeathState=True
+victory WIN=False centerX=0.4722472 resultHidden=True remainingLive=0
+afterBossRemoved=True duringPauseWin=False result=False
+delayedVictory=True centerX=0.5001377 resultHidden=True
+playerMove=0 cameraMove=1.200005 controller=True collider=True
+result=True leftX=0.2884029 enemiesRemaining=0 killDelta=1

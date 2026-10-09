@@ -1,0 +1,3 @@
+Options opened=True paused=True audioPaused=True sameScene=True
+A noDodge=True noRestart=True
+Options closed=True resumed=True audioResumed=True battleNavigationOff=True

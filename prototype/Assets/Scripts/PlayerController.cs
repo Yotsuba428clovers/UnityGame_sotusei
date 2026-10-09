@@ -26,6 +26,13 @@ public class PlayerController : MonoBehaviour
         staggerUntil = Mathf.Max(staggerUntil, Time.time + duration);
     }
 
+    public void EndBattle()
+    {
+        Locked = true;
+        IsDodging = false;
+        SetIgnoreEnemies(false);
+    }
+
     CharacterController cc;
     PlayerInputs input;
     Animator anim;
@@ -90,6 +97,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (SettingsMenu.BlocksGameplay) return;
         bool blocked = Locked || IsStaggered;
         Vector3 dir = blocked ? Vector3.zero : InputDirection();
 
@@ -114,7 +122,11 @@ public class PlayerController : MonoBehaviour
             float mul = Time.time < slowUntil ? slowMul : 1f;
             vel = dir * moveSpeed * mul;
             if (dir.sqrMagnitude > 0.01f && mul > 0.2f)
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), turnSpeed * Time.deltaTime);
+            {
+                var follow = cameraTransform != null ? cameraTransform.GetComponent<CameraFollow>() : null;
+                Vector3 facing = follow != null && follow.firstPerson ? Vector3.ProjectOnPlane(cameraTransform.forward, Vector3.up) : dir;
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(facing), turnSpeed * Time.deltaTime);
+            }
         }
 
         if (cc.isGrounded && vy < 0f) vy = -2f;

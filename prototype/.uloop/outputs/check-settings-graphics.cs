@@ -1,0 +1,1 @@
+var text=new System.Text.StringBuilder();text.AppendLine("qualities="+string.Join(",",UnityEngine.QualitySettings.names)+" active="+UnityEngine.QualitySettings.GetQualityLevel());text.AppendLine("resolutionPrefs="+GameSettings.GetInt("Width",0)+"x"+GameSettings.GetInt("Height",0)+" fullscreenPrefs="+GameSettings.GetInt("Fullscreen",-1));return text.ToString();

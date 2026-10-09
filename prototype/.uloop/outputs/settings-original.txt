@@ -1,0 +1,10 @@
+Bgm|False|0
+Effects|False|0
+Voice|False|0
+Sensitivity|False|0
+Width|False|0
+Height|False|0
+Fullscreen|False|0
+Quality|False|0
+FirstPerson|False|0
+Vibration|False|0

@@ -1,0 +1,4 @@
+battleUiNavigation=False
+A dodge=True battleStayed=True
+A noRestart=True
+Options restarted=True

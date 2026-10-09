@@ -1,0 +1,1 @@
+var p=UnityEngine.Object.FindFirstObjectByType<PlayerCombat>();return "Victory model visible="+System.Linq.Enumerable.All(p.GetComponentsInChildren<UnityEngine.Renderer>(),r=>r.shadowCastingMode!=UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly)+" result="+GameManager.Instance.ResultVisible;

@@ -24,6 +24,8 @@ public class CombatPresentation : MonoBehaviour
         audioSource=gameObject.AddComponent<AudioSource>();audioSource.playOnAwake=false;
         generated=new[]{Tone("Blade",.16f,520,90,.65f),Tone("Impact",.22f,135,45,.55f),Tone("Warning",.28f,340,520,.12f),Tone("Slam",.65f,85,25,.48f),Tone("Special",.9f,190,50,.32f),Tone("Arena ambience",8,48,48,.045f)};
         ambience=gameObject.AddComponent<AudioSource>();ambience.clip=generated[5];ambience.loop=true;ambience.volume=.12f;ambience.Play();
+        gameObject.AddComponent<AudioVolumeChannel>().Configure(ambience, AudioVolumeChannel.Bus.Bgm);
+        gameObject.AddComponent<AudioVolumeChannel>().Configure(audioSource, AudioVolumeChannel.Bus.Effects);
         var go=new GameObject("Combat Screen Flash",typeof(Canvas));go.transform.SetParent(transform,false);
         var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceOverlay;canvas.sortingOrder=15;
         var image=new GameObject("Flash",typeof(RectTransform),typeof(Image));image.transform.SetParent(go.transform,false);
@@ -68,7 +70,6 @@ public class CombatPresentation : MonoBehaviour
     public static void PlayerDamage()
     {
         var self=Instance;if(self==null)return;
-        HitStop(.08f);
         self.damageAlpha=.24f;
         self.damageFlash.color=new Color(.85f,.015f,.025f,self.damageAlpha);
     }
@@ -87,6 +88,7 @@ public class CombatPresentation : MonoBehaviour
     }
     void Update()
     {
+        if (SettingsMenu.IsOpen) return;
         float scale=Time.unscaledTime<hitUntil?.035f:(Time.unscaledTime<slowUntil?.32f:1);
         if(scale<1){Time.timeScale=scale;ownsTime=true;}
         else if(ownsTime){Time.timeScale=1;ownsTime=false;}

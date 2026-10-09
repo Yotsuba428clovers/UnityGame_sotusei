@@ -10,6 +10,7 @@ public class QuickSetup : MonoBehaviour
     public GameObject bossPrefab;
     public GameObject[] additionalEnemyPrefabs;
     public bool enhanceBattlePresentation=true;
+    public bool firstPersonView = true;
     public int startingEnemies=6;
     public int maxAliveEnemies=18;
     [Header("戦闘サウンド（未設定なら合成音）")]
@@ -101,6 +102,7 @@ public class QuickSetup : MonoBehaviour
             camGo.AddComponent<AudioListener>();
         }
         var follow = cam.gameObject.AddComponent<CameraFollow>();
+        follow.firstPerson = firstPersonView;
         follow.target = player.transform;
         controller.cameraTransform = cam.transform;
 
@@ -123,6 +125,7 @@ public class QuickSetup : MonoBehaviour
         spawner.spawnInterval=1.2f;
         spawner.batchSize=2;
         var hud = sys.AddComponent<HUD>();
+        sys.AddComponent<SettingsMenu>();
         hud.font = hudFont;
         DamagePopup.CustomFont = hudFont;
     }

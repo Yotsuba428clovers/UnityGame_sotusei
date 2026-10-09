@@ -48,6 +48,7 @@ public class Rumble : MonoBehaviour
 
     void Update()
     {
+        if (!Enabled || SettingsMenu.IsOpen) { Stop(); return; }
         if (!active) return;
         var pad = Gamepad.current;
         if (pad == null) { active = false; return; }

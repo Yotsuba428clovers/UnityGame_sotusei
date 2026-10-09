@@ -51,7 +51,7 @@ public class EnemySpawner : MonoBehaviour
         Vector3 pos = new Vector3(player.position.x + c.x, player.position.y, player.position.z + c.y);
 
         GameObject prefab = boss ? bossPrefab : enemyPrefab;
-        if(!boss && additionalEnemyPrefabs!=null && additionalEnemyPrefabs.Length>0 && ++spawnCount%3==0)
+        if(!boss && additionalEnemyPrefabs!=null && additionalEnemyPrefabs.Length>0 && ++spawnCount%15==0)
         {
             var alternate=additionalEnemyPrefabs[Random.Range(0,additionalEnemyPrefabs.Length)];
             if(alternate!=null)prefab=alternate;

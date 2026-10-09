@@ -636,7 +636,7 @@ MonoBehaviour:
   attackStyle: 1
   slamRadius: 6
   showAttackWarning: 1
-  maxHp: 1800
+  maxHp: 600
   moveSpeed: 1.8
   bodyRadius: 0.5
   attackRange: 7

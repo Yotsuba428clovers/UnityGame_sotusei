@@ -1,0 +1,1 @@
+var gm=GameManager.Instance;var player=UnityEngine.Object.FindFirstObjectByType<PlayerCombat>();return "Scene="+UnityEngine.SceneManagement.SceneManager.GetActiveScene().path+" state="+gm.State+" result="+gm.ResultVisible+" playerLocked="+player.GetComponent<PlayerController>().Locked+" collider="+player.GetComponent<UnityEngine.CharacterController>().enabled;

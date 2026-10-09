@@ -16,6 +16,9 @@ public class HUD : MonoBehaviour
     float displayedHp=1, trailingHp=1, displayedCharge, comboScale=1;
     int previousCombo;
     bool wasReady;
+    RectTransform clearPanel;
+    CanvasGroup clearGroup;
+    Text clearStats;
     static readonly Color Gold=new Color(.88f,.80f,.50f);
     static readonly Color Lime=new Color(.74f,1,.22f);
     static readonly Color White=new Color(.97f,.95f,.87f);
@@ -108,12 +111,33 @@ public class HUD : MonoBehaviour
         banner=Label("Battle banner",root,new Vector2(.5f,.5f),new Vector2(0,140),new Vector2(1300,100),64,White);
         result=Label("Battle result",root,new Vector2(.5f,.5f),new Vector2(0,58),new Vector2(1300,50),25,Gold);
         Label("Combat inputs",root,new Vector2(1,0),new Vector2(-335,29),new Vector2(590,27),14,new Color(.9f,.9f,.85f,.75f),TextAnchor.MiddleRight).text="J / X  ATTACK    K / Y  HEAVY    SPACE / A  DODGE";
+        clearPanel=Rect("Clear results",root,new Vector2(.74f,.5f),Vector2.zero,new Vector2(650,600));
+        clearGroup=clearPanel.gameObject.AddComponent<CanvasGroup>();clearGroup.alpha=0;clearGroup.blocksRaycasts=false;
+        Box("Result backing",clearPanel,new Vector2(.5f,.5f),Vector2.zero,new Vector2(650,600),new Color(.035f,.045f,.07f,.92f));
+        Box("Gold rule",clearPanel,new Vector2(.5f,.5f),new Vector2(0,162),new Vector2(540,2),Gold);
+        Label("Clear heading",clearPanel,new Vector2(.5f,.5f),new Vector2(0,225),new Vector2(600,90),54,Gold).text="STAGE CLEAR";
+        clearStats=Label("Clear stats",clearPanel,new Vector2(.5f,.5f),new Vector2(0,12),new Vector2(520,260),28,White,TextAnchor.MiddleLeft);
+        Label("Result restart",clearPanel,new Vector2(.5f,.5f),new Vector2(0,-225),new Vector2(600,60),23,Gold).text="R  ·  PLAY AGAIN     OPTIONS  ·  SETTINGS";
+        clearPanel.gameObject.SetActive(false);
     }
     void Update()
     {
         if(root==null)return;
         if(player==null)player=FindFirstObjectByType<PlayerCombat>();
         var gm=GameManager.Instance;canvas.enabled=player!=null&&gm!=null;if(!canvas.enabled)return;
+        if(gm.State==GameManager.GameState.Cleared)
+        {
+            for(int i=0;i<root.childCount;i++)
+            {
+                var child=root.GetChild(i);
+                if(child!=clearPanel)child.gameObject.SetActive(false);
+            }
+            clearPanel.gameObject.SetActive(gm.ResultVisible);
+            clearGroup.alpha=Mathf.MoveTowards(clearGroup.alpha,gm.ResultVisible?1:0,Time.unscaledDeltaTime*3);
+            clearStats.text="TIME                 "+System.TimeSpan.FromSeconds(gm.ClearTime).ToString(@"mm\:ss")
+                +"\n\nENEMIES DEFEATED     "+gm.Kills+"\n\nMAX COMBO            "+gm.MaxCombo+"\n\nHP REMAINING         "+Mathf.CeilToInt(player.Hp)+" / "+Mathf.CeilToInt(player.maxHp);
+            return;
+        }
         float dt=Time.unscaledDeltaTime,blend=1-Mathf.Exp(-10*dt);
         float hp=Mathf.Clamp01(player.Hp/Mathf.Max(1,player.maxHp));
         displayedHp=Mathf.Lerp(displayedHp,hp,blend);trailingHp=Mathf.MoveTowards(trailingHp,hp,dt*.25f);
@@ -146,6 +170,6 @@ public class HUD : MonoBehaviour
         if(boss){bossLabel.text="B O S S";SetBar(bossFill,Enemy.Boss.Hp/Mathf.Max(1,Enemy.Boss.maxHp),700);}
         buffsLabel.text=(player.LightningBuffRemaining>0?"THUNDER MODE  "+player.LightningBuffRemaining.ToString("0.0")+"s   ":"")+(player.WindBuffRemaining>0?"WIND MODE  "+player.WindBuffRemaining.ToString("0.0")+"s":"");
         banner.text=gm.BannerRemaining>0?gm.BannerText:"";
-        result.text=gm.State!=GameManager.GameState.Playing?"MAX COMBO  "+gm.MaxCombo+"    ·    START / R TO RESTART":"";
+        result.text=gm.State!=GameManager.GameState.Playing?"MAX COMBO  "+gm.MaxCombo+"    ·    R TO RESTART / OPTIONS FOR SETTINGS":"";
     }
 }
