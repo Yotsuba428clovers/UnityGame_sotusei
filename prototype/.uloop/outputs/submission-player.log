@@ -1,0 +1,19 @@
+Mono path[0] = 'C:/Users/G2320/UnityGame_sotusei/prototype/Builds/Submission-Windows-20261009/ElementShift_Data/Managed'
+Mono config path = 'C:/Users/G2320/UnityGame_sotusei/prototype/Builds/Submission-Windows-20261009/MonoBleedingEdge/etc'
+Initialize engine version: 2022.3.0f1 (fb119bb0b476)
+[Subsystems] Discovering subsystems at path C:/Users/G2320/UnityGame_sotusei/prototype/Builds/Submission-Windows-20261009/ElementShift_Data/UnitySubsystems
+GfxDevice: creating device client; threaded=1; jobified=1
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.1]
+    Renderer: NVIDIA GeForce RTX 3050 Laptop GPU (ID=0x25a2)
+    Vendor:   NVIDIA
+    VRAM:     3964 MB
+    Driver:   32.0.15.7602
+Begin MonoManager ReloadAssembly
+- Loaded All Assemblies, in  1.950 seconds
+- Finished resetting the current domain, in  0.001 seconds
+<RI> Initializing input.
+New input system (experimental) initialized
+Using Windows.Gaming.Input
+<RI> Initialized touch support.
+UnloadTime: 0.779300 ms

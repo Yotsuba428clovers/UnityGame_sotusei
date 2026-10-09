@@ -1,0 +1,12 @@
+if(UnityEditor.EditorApplication.isPlaying)throw new System.Exception("Stop Play Mode before building");
+var target=UnityEditor.BuildTarget.StandaloneWindows64;
+if(!UnityEditor.BuildPipeline.IsBuildTargetSupported(UnityEditor.BuildTargetGroup.Standalone,target))throw new System.Exception("Windows build support module is missing");
+var scenes=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(System.Linq.Enumerable.Where(UnityEditor.EditorBuildSettings.scenes,s=>s.enabled),s=>s.path));
+var output="C:/Users/G2320/UnityGame_sotusei/prototype/Builds/Submission-Windows-20261009/ElementShift.exe";
+System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(output));
+var options=new UnityEditor.BuildPlayerOptions{scenes=scenes,locationPathName=output,target=target,options=UnityEditor.BuildOptions.None};
+var report=UnityEditor.BuildPipeline.BuildPlayer(options);var summary=report.summary;
+var text="Result="+summary.result+" Errors="+summary.totalErrors+" Warnings="+summary.totalWarnings+" Bytes="+summary.totalSize+" Time="+summary.totalTime+" Output="+summary.outputPath;
+System.IO.File.WriteAllText("C:/Users/G2320/UnityGame_sotusei/prototype/.uloop/outputs/submission-build-report.txt",text);
+if(summary.result!=UnityEditor.Build.Reporting.BuildResult.Succeeded)throw new System.Exception(text);
+return text;

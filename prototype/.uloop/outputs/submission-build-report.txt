@@ -1,0 +1,1 @@
+Result=Succeeded Errors=0 Warnings=3 Bytes=115548632 Time=00:01:29.2590474 Output=C:/Users/G2320/UnityGame_sotusei/prototype/Builds/Submission-Windows-20261009/ElementShift.exe
