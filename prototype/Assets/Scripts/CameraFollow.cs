@@ -107,7 +107,7 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        if (SettingsMenu.IsOpen) return;
+        if (SettingsMenu.BlocksGameplay || RunManager.RewardOpen) return;
         if (victoryPrelude) return;
         if (victory)
         {
@@ -130,8 +130,10 @@ public class CameraFollow : MonoBehaviour
         if (input != null)
         {
             Vector2 l = input.Look;
-            yaw += l.x * sensitivity * dt;
-            pitch = Mathf.Clamp(pitch - l.y * sensitivity * dt, firstPerson ? -75f : minPitch, firstPerson ? 75f : maxPitch);
+            Vector2 mouse=input.MouseLook;
+            float mouseDegreesPerPixel=sensitivity*.0015f;
+            yaw += l.x*sensitivity*dt + mouse.x*mouseDegreesPerPixel;
+            pitch = Mathf.Clamp(pitch-l.y*sensitivity*dt-mouse.y*mouseDegreesPerPixel, firstPerson ? -75f : minPitch, firstPerson ? 75f : maxPitch);
         }
 
         Vector3 focus = target.position + Vector3.up * height;

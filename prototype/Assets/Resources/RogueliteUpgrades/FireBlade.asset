@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33f8cfb5cfb77d44886f497487990dc8, type: 3}
+  m_Name: FireBlade
+  m_EditorClassIdentifier: 
+  effect: 5
+  rarity: 1
+  title: "\u708E\u5203"
+  description: "\u901A\u5E38\u653B\u6483\u306B\u708E\u30C0\u30E1\u30FC\u30B8+20%"
+  maxStacks: 1

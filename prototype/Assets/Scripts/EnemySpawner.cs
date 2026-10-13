@@ -22,6 +22,7 @@ public class EnemySpawner : MonoBehaviour
 
     void Start()
     {
+        if (GetComponent<RunManager>() != null) return;
         for (int i = 0; i < startingEnemies; i++) Spawn(false);
     }
 
@@ -61,7 +62,6 @@ public class EnemySpawner : MonoBehaviour
         Enemy e = go.GetComponent<Enemy>();
         bool fresh = e == null;
         if (fresh) e = go.AddComponent<Enemy>();
-        e.weakElement = (Element)Random.Range(0, 4);
         e.isBoss = boss;
         if (fresh && boss)
         {
@@ -73,6 +73,8 @@ public class EnemySpawner : MonoBehaviour
             e.attackWindup = 0.9f;
         }
     }
+
+    public void SpawnEnemy(bool boss) { if (player != null) Spawn(boss); }
 
     // 仮モデル(足元が原点のカプセル)
     GameObject CreateDefault(Vector3 pos, bool boss)

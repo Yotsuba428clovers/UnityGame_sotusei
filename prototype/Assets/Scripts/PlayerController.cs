@@ -17,6 +17,7 @@ public class PlayerController : MonoBehaviour
     public Transform cameraTransform;
 
     public bool IsDodging { get; private set; }
+    public float DodgeStarted { get; private set; }
     public bool Locked { get; set; }
     public bool IsStaggered { get { return Time.time < staggerUntil; } }
     float staggerUntil;
@@ -64,6 +65,7 @@ public class PlayerController : MonoBehaviour
     public void BeginDodge(Vector3 dir, float speed, float duration)
     {
         IsDodging = true;
+        DodgeStarted = Time.time;
         dodgeEnd = Time.time + duration;
         dodgeSpeedNow = speed;
         dodgeDir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
@@ -97,7 +99,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (SettingsMenu.BlocksGameplay) return;
+        if (SettingsMenu.BlocksGameplay || RunManager.RewardOpen) return;
         bool blocked = Locked || IsStaggered;
         Vector3 dir = blocked ? Vector3.zero : InputDirection();
 

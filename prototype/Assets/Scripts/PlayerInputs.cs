@@ -1,15 +1,20 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// コントローラー入力(キーボードはテスト用)。Input Systemのアクションをコードで定義するので設定ファイル不要。
+// PC / ゲームパッド入力。Input Systemのアクションをコードで定義。
 // X:通常攻撃 Y:強攻撃 A:回避 B:必殺技 LB/RB:属性切り替え
-// キーボード: WASD移動 / 矢印キー視点 / J,K,Space,L / Q,E
+// PC: WASD移動 / マウス視点 / F通常攻撃 / G強攻撃 / Space回避 / Z ULT / Q,E属性切替
 public class PlayerInputs : MonoBehaviour
 {
-    InputAction move, look, attack, heavy, dodge, special, next, prev;
+    InputAction move, look, mouseLook, attack, heavy, dodge, special, next, prev;
+    bool ownsCursor;
+    int mouseCaptureFrame=-100;
 
     public Vector2 Move => move.ReadValue<Vector2>();
     public Vector2 Look => look.ReadValue<Vector2>();
+    // Mouse delta is pixels per frame. Keep it separate from stick velocity.
+    public Vector2 MouseLook => ownsCursor && Cursor.lockState==CursorLockMode.Locked &&
+        Time.frameCount>mouseCaptureFrame+1 ? mouseLook.ReadValue<Vector2>() : Vector2.zero;
     public bool Attack => attack.WasPressedThisFrame();
     public bool Heavy => heavy.WasPressedThisFrame();
     public bool Dodge => dodge.WasPressedThisFrame();
@@ -35,27 +40,50 @@ public class PlayerInputs : MonoBehaviour
 
         look = new InputAction("Look", InputActionType.Value);
         look.AddBinding("<Gamepad>/rightStick");
-        look.AddCompositeBinding("2DVector")
-            .With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow")
-            .With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
+        mouseLook=new InputAction("Mouse Look",InputActionType.PassThrough,"<Mouse>/delta");
 
-        attack = Btn("Attack", "<Gamepad>/buttonWest", "<Keyboard>/j");
-        heavy = Btn("Heavy", "<Gamepad>/buttonNorth", "<Keyboard>/k");
+        attack = Btn("Attack", "<Gamepad>/buttonWest", "<Keyboard>/f");
+        heavy = Btn("Heavy", "<Gamepad>/buttonNorth", "<Keyboard>/g");
         dodge = Btn("Dodge", "<Gamepad>/buttonSouth", "<Keyboard>/space");
-        special = Btn("Special", "<Gamepad>/buttonEast", "<Keyboard>/l");
+        special = Btn("Special", "<Gamepad>/buttonEast", "<Keyboard>/z");
         next = Btn("NextElement", "<Gamepad>/rightShoulder", "<Keyboard>/e");
         prev = Btn("PrevElement", "<Gamepad>/leftShoulder", "<Keyboard>/q");
     }
 
     void OnEnable()
     {
-        move.Enable(); look.Enable(); attack.Enable(); heavy.Enable();
+        move.Enable(); look.Enable(); mouseLook.Enable(); attack.Enable(); heavy.Enable();
         dodge.Enable(); special.Enable(); next.Enable(); prev.Enable();
     }
 
     void OnDisable()
     {
-        move.Disable(); look.Disable(); attack.Disable(); heavy.Disable();
+        move.Disable(); look.Disable(); mouseLook.Disable(); attack.Disable(); heavy.Disable();
         dodge.Disable(); special.Disable(); next.Disable(); prev.Disable();
+        ReleaseCursor();
+    }
+
+    void Update()
+    {
+        var game=GameManager.Instance;
+        bool capture=Application.isFocused && Mouse.current!=null && game!=null &&
+            game.State==GameManager.GameState.Playing && !SettingsMenu.BlocksGameplay && !RunManager.RewardOpen;
+        if(!capture){ReleaseCursor();return;}
+        if(!ownsCursor || Cursor.lockState!=CursorLockMode.Locked)
+        {
+            Cursor.lockState=CursorLockMode.Locked;Cursor.visible=false;
+            ownsCursor=true;mouseCaptureFrame=Time.frameCount;
+        }
+    }
+    void ReleaseCursor()
+    {
+        if(!ownsCursor)return;
+        Cursor.lockState=CursorLockMode.None;Cursor.visible=true;ownsCursor=false;
+    }
+    void OnApplicationFocus(bool focus) { if(!focus)ReleaseCursor(); }
+    void OnDestroy()
+    {
+        move?.Dispose();look?.Dispose();mouseLook?.Dispose();attack?.Dispose();heavy?.Dispose();
+        dodge?.Dispose();special?.Dispose();next?.Dispose();prev?.Dispose();
     }
 }

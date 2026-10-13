@@ -8,6 +8,11 @@ public class CombatPresentation : MonoBehaviour
     [Range(0,1)] public float soundVolume=.35f;
     public static CombatPresentation Instance { get; private set; }
     public Material effectMaterial { get; private set; }
+    [Header("ジャスト回避演出")]
+    [Range(.1f, 1f)] public float justDodgeTimeScale = .35f;
+    [Min(.05f)] public float justDodgeDuration = .3f;
+    public Color justDodgeColor = new Color(.45f, .9f, 1f);
+    float dodgeStarted, dodgeUntil;
     AudioSource audioSource, ambience;
     AudioClip[] generated;
     float hitUntil, slowUntil, flashAlpha, nextSound;
@@ -73,6 +78,26 @@ public class CombatPresentation : MonoBehaviour
         self.damageAlpha=.24f;
         self.damageFlash.color=new Color(.85f,.015f,.025f,self.damageAlpha);
     }
+    public static void JustDodge(Vector3 position)
+    {
+        var self=Instance;
+        if(self==null)return;
+        self.dodgeStarted=Time.unscaledTime;
+        self.dodgeUntil=self.dodgeStarted+Mathf.Max(.05f,self.justDodgeDuration);
+        // Replace the old near-freeze with a readable slow-motion window.
+        self.hitUntil=Time.unscaledTime;
+        self.flashColor=self.justDodgeColor;
+        self.flashAlpha=.08f;
+        var ground=CombatPulse.Create(position,self.justDodgeColor,2.8f,.4f);
+        if(ground!=null)ground.name="Just Dodge Ground Ring";
+        var halo=CombatPulse.Create(position+Vector3.up,Color.white,1.25f,.28f);
+        if(halo!=null)
+        {
+            halo.name="Just Dodge Halo";
+            halo.transform.rotation=Quaternion.Euler(90,0,0);
+        }
+        CameraFollow.Punch(3,.25f);
+    }
     public static void Special(Element element,Vector3 position)
     {
         var self=Instance;if(self==null)return;
@@ -88,8 +113,14 @@ public class CombatPresentation : MonoBehaviour
     }
     void Update()
     {
-        if (SettingsMenu.IsOpen) return;
+        if (SettingsMenu.IsOpen || RunManager.RewardOpen) return;
         float scale=Time.unscaledTime<hitUntil?.035f:(Time.unscaledTime<slowUntil?.32f:1);
+        if(Time.unscaledTime<dodgeUntil)
+        {
+            float progress=Mathf.Clamp01((Time.unscaledTime-dodgeStarted)/Mathf.Max(.05f,justDodgeDuration));
+            float dodgeScale=Mathf.Lerp(justDodgeTimeScale,1f,Mathf.SmoothStep(0,1,progress));
+            scale=Mathf.Min(scale,dodgeScale);
+        }
         if(scale<1){Time.timeScale=scale;ownsTime=true;}
         else if(ownsTime){Time.timeScale=1;ownsTime=false;}
         flashAlpha=Mathf.MoveTowards(flashAlpha,0,Time.unscaledDeltaTime*.45f);

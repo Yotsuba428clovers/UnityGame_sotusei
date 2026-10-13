@@ -17,6 +17,7 @@ public class GameManager : MonoBehaviour
     public bool ResultVisible { get; private set; }
     public float ClearTime { get; private set; }
     float battleStarted;
+    float runSeconds;
 
     public GameState State { get; private set; } = GameState.Playing;
     public int Kills { get; private set; }
@@ -27,12 +28,15 @@ public class GameManager : MonoBehaviour
     public bool ComboActive { get { return Time.time < comboExpire; } }
 
     float comboExpire, bannerUntil;
+    RunManager run;
 
     void Awake()
     {
         Instance = this;
         Time.timeScale = 1f;
         battleStarted = Time.time;
+        run = GetComponent<RunManager>();
+        if (run == null) run = gameObject.AddComponent<RunManager>();
     }
 
     public void AddCombo(int n)
@@ -56,7 +60,8 @@ public class GameManager : MonoBehaviour
         if (e.isBoss && State == GameState.Playing)
         {
             State = GameState.Cleared;
-            ClearTime = Time.time - battleStarted;
+            ClearTime = runSeconds;
+            run.Finish(true);
             BannerText = "";
             foreach (var enemy in FindObjectsByType<Enemy>(FindObjectsSortMode.None))
             {
@@ -100,6 +105,11 @@ public class GameManager : MonoBehaviour
     {
         if (State != GameState.Playing) return;
         State = GameState.GameOver;
+        ClearTime = runSeconds;
+        run.Finish(false);
+        var player = FindFirstObjectByType<PlayerCombat>();
+        if (player != null) player.EndCombat();
+        foreach (var spawner in FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None)) spawner.enabled = false;
         ShowBanner("GAME OVER", 999f);
     }
 
@@ -115,12 +125,18 @@ public class GameManager : MonoBehaviour
 
     public void RestartBattle()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        run.RestartRun();
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     void Update()
     {
         if (SettingsMenu.BlocksGameplay) return;
+        if(State==GameState.Playing && !RunManager.RewardOpen)runSeconds+=Time.deltaTime;
         if (State == GameState.Playing) return;
         if (State == GameState.Cleared && !ResultVisible) return;
         bool key = Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame;

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// ダメージ数字(弱点は黄色で大きく表示)
+// ダメージ数字。強調表示は汎用フラグで、敵の属性弱点は廃止。
 public class DamagePopup : MonoBehaviour
 {
     // 変更後

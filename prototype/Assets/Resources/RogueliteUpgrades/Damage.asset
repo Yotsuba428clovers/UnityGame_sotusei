@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33f8cfb5cfb77d44886f497487990dc8, type: 3}
+  m_Name: Damage
+  m_EditorClassIdentifier: 
+  effect: 15
+  rarity: 0
+  title: "\u92ED\u5229\u306A\u5203"
+  description: "\u901A\u5E38\u30FB\u5F37\u653B\u6483\u529B+10%"
+  maxStacks: 5

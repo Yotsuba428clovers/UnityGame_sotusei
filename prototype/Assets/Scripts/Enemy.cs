@@ -2,8 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 雑魚・ボス共通の敵。頭上の球の色 = 弱点属性。
-// 弱点属性 x1.5 / 反属性(耐性) x0.6
+// 雑魚・ボス共通。固有属性・弱点・耐性は持たず、攻撃属性による状態異常だけを受ける。
 // 炎:継続ダメージ 氷:鈍足 雷:スタン 風:大きく吹き飛ばし
 // 氷の必殺技: 凍結(動けず攻撃不可・ノックバックなし)
 public class Enemy : MonoBehaviour
@@ -38,10 +37,7 @@ public class Enemy : MonoBehaviour
     public Vector3 attackFxRotation = Vector3.zero;
     [Min(0.01f)] public float attackFxScale = 1f;
 
-    [Header("属性")]
-    public Element weakElement = Element.Fire;
-    public float weakMultiplier = 1.5f;
-    public float resistMultiplier = 0.6f;
+    [Header("ボス")]
     public bool isBoss;
 
     [Header("やられ演出")]
@@ -53,26 +49,43 @@ public class Enemy : MonoBehaviour
 
     public float Hp { get; private set; }
     public bool IsDead { get; private set; }
+    public bool IsFrozen => Time.time < frozenUntil;
+    public bool IsBurning => Time.time < burnUntil;
+    public bool IsChilled => Time.time < slowUntil;
+    public bool IsShocked => Time.time < shockUntil;
+    public bool IsWinded => Time.time < windUntil;
+    public bool IsBroken => Time.time < breakUntil;
+    public bool HitFlash => Time.time < flashUntil;
+    public Element LastAppliedElement { get; private set; }
+    public float BreakRemaining { get; private set; } = 100f;
+    public void DamageBreak(float amount)
+    {
+        if(!isBoss||IsDead)return;
+        BreakRemaining-=amount;
+        if(BreakRemaining<=0)
+        {
+            BreakRemaining=100;breakUntil=Time.time+3f;stunUntil=Mathf.Max(stunUntil,breakUntil);
+            attackToken++;ClearWarning();knockVel=Vector3.zero;
+            GameManager.Instance?.ShowBanner("BREAK!",2);
+        }
+    }
     public float Radius { get { return bodyRadius * transform.localScale.x; } }
 
     PlayerCombat player;
-    readonly List<Material> mats = new List<Material>();
-    readonly List<Color> baseCols = new List<Color>();
     Vector3 knockVel;
     float nextAttack, stunUntil, slowUntil, burnUntil, nextBurnTick, flashUntil, frozenUntil;
-    bool attacking, warn;
+    float shockUntil, windUntil, breakUntil;
+    bool attacking;
     int attackToken;
     Vector3 lastHitDir;   // 最後に受けた攻撃の方向
     Collider[] cols;
     Animator anim;
     bool hasSpeedParam;
     CombatPulse activeWarning;
-    Material markerMaterial;
 
     void OnEnable() { All.Add(this); }
     void OnDisable() { All.Remove(this); if (Boss == this) Boss = null; ClearWarning(); }
     void ClearWarning(){if(activeWarning!=null)Destroy(activeWarning.gameObject);activeWarning=null;}
-    void OnDestroy(){foreach(var material in mats)if(material!=null)Destroy(material);if(markerMaterial!=null)Destroy(markerMaterial);}
 
     // Colliderが無いPrefabでも攻撃が当たるように、見た目の大きさに合わせて自動で付ける
     void EnsureCollider()
@@ -100,43 +113,23 @@ public class Enemy : MonoBehaviour
         if (anim != null) anim.applyRootMotion = false;   // モデルだけが動いて、当たり判定が置いていかれるのを防ぐ
         hasSpeedParam = AnimHelper.Has(anim, "Speed", AnimatorControllerParameterType.Float);
 
-        foreach (var r in GetComponentsInChildren<Renderer>())
-        {
-            Material m = r.material;
-            if (m.HasProperty("_BaseColor")) { mats.Add(m); baseCols.Add(m.GetColor("_BaseColor")); }
-            else if (m.HasProperty("_Color")) { mats.Add(m); baseCols.Add(m.GetColor("_Color")); }
-        }
-
-        // 弱点属性マーカー(頭上の球)
-        var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Destroy(marker.GetComponent<Collider>());
-        marker.transform.SetParent(transform, false);
-        var renderers=GetComponentsInChildren<Renderer>();
-        float top=transform.position.y+2f;
-        foreach(var renderer in renderers)if(renderer.gameObject!=marker)top=Mathf.Max(top,renderer.bounds.max.y);
-        marker.transform.position=new Vector3(transform.position.x,top+.35f,transform.position.z);
-        marker.transform.rotation=Quaternion.Euler(45,0,45);
-        marker.transform.localScale = Vector3.one * (.16f/Mathf.Max(.01f,transform.lossyScale.x));
-        var mm = new Material(Shader.Find("Sprites/Default"));
-        mm.color = ElementUtil.GetColor(weakElement);
-        markerMaterial=mm;
-        marker.GetComponent<Renderer>().material = mm;
+        if(GetComponent<EnemyStatusVisual>()==null)gameObject.AddComponent<EnemyStatusVisual>();
     }
 
     void Update()
     {
+        if (SettingsMenu.BlocksGameplay || RunManager.RewardOpen || (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Playing)) return;
         if (IsDead) return;
 
         // 炎の継続ダメージ
         if (Time.time < burnUntil && Time.time >= nextBurnTick)
         {
             nextBurnTick = Time.time + 0.5f;
-            ApplyDamage(isBoss ? 6f : 4f, Element.Fire, false, false);
+            ApplyDamage(isBoss ? 6f : 4f, false);
             if (IsDead) return;
         }
 
-        UpdateVisual();
-        if (anim != null) anim.speed = Time.time < frozenUntil ? 0f : (Time.time < slowUntil ? 0.55f : 1f);
+        if (anim != null) anim.speed = IsFrozen || IsBroken ? 0f : (IsChilled ? 0.55f : 1f);
         if (player == null || player.IsDead)
         {
             if (hasSpeedParam) anim.SetFloat("Speed", 0f, 0.1f, Time.deltaTime);
@@ -206,7 +199,6 @@ public class Enemy : MonoBehaviour
         int token = attackToken;
         Vector3 impactPosition=transform.position;
         nextAttack = Time.time + attackCooldown + Random.Range(0f, 0.5f);
-        warn = true;
         AnimHelper.Trigger(anim, "Attack");
         CombatPresentation.Sound(2,transform.position);
         if(showAttackWarning)
@@ -214,7 +206,6 @@ public class Enemy : MonoBehaviour
                 new Color(1,.32f,.13f),attackStyle==AttackStyle.GroundSlam?slamRadius:attackRange*.65f,attackWindup,true);
         yield return new WaitForSeconds(attackWindup);   // 攻撃モーションの「当たる瞬間」まで
         ClearWarning();
-        warn = false;
         if (!IsDead && token == attackToken && player != null)
         {
             if (attackFx != null)
@@ -245,6 +236,7 @@ public class Enemy : MonoBehaviour
         attackToken++;            // 攻撃の溜めをキャンセル
         ClearWarning();
         knockVel = Vector3.zero;
+        windUntil=0;
     }
 
     // プレイヤーの回避中に、当たり判定を無視する
@@ -255,7 +247,7 @@ public class Enemy : MonoBehaviour
             if (c != null) Physics.IgnoreCollision(other, c, ignore);
     }
 
-    // 戻り値 = 弱点を突いたか
+    // 戻り値 = 生存中の敵が命中を受け付けたか。属性による弱点倍率はない。
     public bool TakeHit(float damage, Element element, Vector3 knockback)
     {
         if (IsDead) return false;
@@ -264,15 +256,13 @@ public class Enemy : MonoBehaviour
         flat.y = 0f;
         if (flat.sqrMagnitude > 0.0001f) lastHitDir = flat.normalized;
 
-        bool weak = element == weakElement;
-        bool resist = element == ElementUtil.Opposite(weakElement);
-        float mult = weak ? weakMultiplier : (resist ? resistMultiplier : 1f);
         float bossResist = isBoss ? 0.25f : 1f;
 
         // knockbackは「飛ぶ距離(m)」として扱い、初速に変換
         float dist = knockback.magnitude * bossResist;
         if (Time.time < frozenUntil) dist = 0f;   // 凍結中は吹っ飛ばない
         flashUntil = Time.time + 0.06f;
+        LastAppliedElement=element;
 
         switch (element)
         {
@@ -283,12 +273,14 @@ public class Enemy : MonoBehaviour
                 slowUntil = Time.time + 3f;
                 break;
             case Element.Lightning:
-                stunUntil = Mathf.Max(stunUntil, Time.time + (isBoss ? 0.2f : 0.6f));
+                shockUntil=Time.time+(isBoss?.2f:.6f);
+                stunUntil = Mathf.Max(stunUntil, shockUntil);
                 attackToken++;
                 ClearWarning();
                 break;
             case Element.Wind:
                 dist *= 1.8f;
+                windUntil=Time.time+Mathf.Max(isBoss?.1f:.25f,Mathf.Sqrt(2f*25f*dist)/25f);
                 stunUntil = Mathf.Max(stunUntil, Time.time + (isBoss ? 0.1f : 0.25f));
                 attackToken++;
                 ClearWarning();
@@ -296,16 +288,16 @@ public class Enemy : MonoBehaviour
         }
         if (dist > 0.01f) knockVel = knockback.normalized * Mathf.Sqrt(2f * 25f * dist);
 
-        ApplyDamage(damage * mult, element, weak, true);
-        return weak;
+        ApplyDamage(damage, true);
+        return true;
     }
 
-    void ApplyDamage(float dmg, Element el, bool weak, bool popup)
+    void ApplyDamage(float dmg, bool popup)
     {
         Hp -= dmg;
         if (popup)
             DamagePopup.Spawn(transform.position + Vector3.up * (2.2f * transform.localScale.y), dmg,
-                              weak ? Color.yellow : Color.white, weak);
+                              Color.white, false);
         if (Hp <= 0f) Die();
     }
 
@@ -315,11 +307,12 @@ public class Enemy : MonoBehaviour
         IsDead = true;
         StopAllCoroutines();
         attacking = false;
-        warn = false;
         ClearWarning();
         All.Remove(this);
         if (Boss == this) Boss = null;
         foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;
+        if (player != null)
+            player.GetComponent<PlayerBuild>()?.EnemyKilled(this);
         if (player != null)
             Fx.Play(player.enemyDeathFx, transform.position + Vector3.up * transform.localScale.y,
                     Quaternion.identity, player.fxScale * transform.localScale.x);
@@ -385,20 +378,5 @@ public class Enemy : MonoBehaviour
         Destroy(gameObject);
     }
 
-    void UpdateVisual()
-
-    {
-        for (int i = 0; i < mats.Count; i++)
-        {
-            Color c = baseCols[i];
-            if (Time.time < burnUntil) c = Color.Lerp(c, ElementUtil.GetColor(Element.Fire), 0.5f);
-            if (Time.time < slowUntil) c = Color.Lerp(c, ElementUtil.GetColor(Element.Ice), 0.5f);
-            if (warn) c = Color.Lerp(c, Color.red, 0.6f);
-            if (Time.time < frozenUntil) c = Color.Lerp(c, ElementUtil.GetColor(Element.Ice), 0.85f);
-            if (Time.time < flashUntil) c = Color.white;
-            if (mats[i].HasProperty("_BaseColor")) mats[i].SetColor("_BaseColor", c);
-            if (mats[i].HasProperty("_Color")) mats[i].SetColor("_Color", c);
-        }
-    }
 }
 

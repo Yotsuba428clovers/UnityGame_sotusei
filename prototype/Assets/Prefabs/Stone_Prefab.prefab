@@ -649,9 +649,6 @@ MonoBehaviour:
   attackFxOffset: {x: 0, y: 1, z: 1}
   attackFxRotation: {x: 0, y: 0, z: 0}
   attackFxScale: 3
-  weakElement: 0
-  weakMultiplier: 1.5
-  resistMultiplier: 0.6
   isBoss: 1
   deathAnimation: {fileID: 7400000, guid: 8f43abd890c363041bb0eedc2e2698b2, type: 2}
   deathLaunchSpeed: 14

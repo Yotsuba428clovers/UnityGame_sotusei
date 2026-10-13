@@ -18,7 +18,7 @@ public class SettingsMenu : MonoBehaviour
     readonly List<Vector2Int> resolutions = new List<Vector2Int>();
     int resolutionIndex;
     bool fullscreen;
-    Text resolutionText, modeText, qualityText, viewText, vibrationText;
+    Text resolutionText, modeText, qualityText, viewText, vibrationText, languageText;
     CameraFollow follow;
     static readonly Color Gold = new Color(.88f, .8f, .5f);
     static readonly Color Ink = new Color(.035f, .045f, .07f, .98f);
@@ -56,7 +56,7 @@ public class SettingsMenu : MonoBehaviour
         var text = Rect(name, parent, position, size).gameObject.AddComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.text = content; text.fontSize = fontSize; text.color = color; text.alignment = alignment;
-        text.raycastTarget = false; return text;
+        text.raycastTarget = false; LocalizedLabel.Bind(text); return text;
     }
 
     Image Box(string name, Transform parent, Vector2 position, Vector2 size, Color color)
@@ -120,17 +120,21 @@ public class SettingsMenu : MonoBehaviour
         Choice(panel, "RESOLUTION", 55, ResolutionLabel(), () => { resolutionIndex = (resolutionIndex + 1) % resolutions.Count; resolutionText.text = ResolutionLabel(); ApplyDisplay(); }, out resolutionText);
         Choice(panel, "DISPLAY MODE", 5, fullscreen ? "FULLSCREEN  >" : "WINDOWED  >", () => { fullscreen = !fullscreen; modeText.text = fullscreen ? "FULLSCREEN  >" : "WINDOWED  >"; ApplyDisplay(); }, out modeText);
         Choice(panel, "QUALITY", -45, QualitySettings.names[QualitySettings.GetQualityLevel()] + "  >", () => { int quality = (QualitySettings.GetQualityLevel() + 1) % QualitySettings.names.Length; GameSettings.SetInt("Quality", quality); QualitySettings.SetQualityLevel(quality, true); qualityText.text = QualitySettings.names[quality] + "  >"; }, out qualityText);
-        Choice(panel, "CAMERA", -95, follow != null && follow.firstPerson ? "FIRST PERSON  >" : "THIRD PERSON  >", () => { if (follow == null) return; follow.SetFirstPerson(!follow.firstPerson); GameSettings.SetInt("FirstPerson", follow.firstPerson ? 1 : 0); viewText.text = follow.firstPerson ? "FIRST PERSON  >" : "THIRD PERSON  >"; }, out viewText);
+        Choice(panel, "CAMERA", -95, CameraLabel(), () => { bool firstPerson=!(follow!=null?follow.firstPerson:GameSettings.FirstPerson(true)); GameSettings.SetInt("FirstPerson",firstPerson?1:0); if(follow!=null)follow.SetFirstPerson(firstPerson); viewText.text=CameraLabel(); }, out viewText);
         Label("Controls Section", panel, "CONTROLS", new Vector2(-300, -145), new Vector2(240, 34), 20, Gold);
         SliderRow(panel, "LOOK SENSITIVITY", -190, 40, 300, GameSettings.Sensitivity, v => { GameSettings.SetFloat("Sensitivity", v); if (follow != null) follow.sensitivity = v; }, false);
         Choice(panel, "VIBRATION", -240, Rumble.Enabled ? "ON  >" : "OFF  >", () => { Rumble.Enabled = !Rumble.Enabled; GameSettings.SetInt("Vibration", Rumble.Enabled ? 1 : 0); vibrationText.text = Rumble.Enabled ? "ON  >" : "OFF  >"; }, out vibrationText);
+        Choice(panel, "LANGUAGE", -285, UiLanguage.Pick("日本語  >", "English  >"), () => { UiLanguage.SetEnglish(!UiLanguage.English); languageText.text=UiLanguage.Pick("日本語  >", "English  >"); }, out languageText);
         Text unused;
         Button("Resume", panel, "CLOSE / RESUME", new Vector2(-225, -335), new Vector2(370, 55), Close, out unused);
-        Button("Restart Battle", panel, "RESTART BATTLE", new Vector2(225, -335), new Vector2(370, 55), () => { Close(); if (GameManager.Instance != null) GameManager.Instance.RestartBattle(); }, out unused);
+        var restart=Button("Restart Battle", panel, "RESTART BATTLE", new Vector2(225, -335), new Vector2(370, 55), () => { Close(); if (GameManager.Instance != null) GameManager.Instance.RestartBattle(); }, out unused);
+        restart.gameObject.SetActive(GameManager.Instance!=null);
+        if(GameManager.Instance==null)panel.Find("Resume").GetComponent<RectTransform>().anchoredPosition=new Vector2(0,-335);
         popup.SetActive(false);
     }
 
     string ResolutionLabel() => resolutions[resolutionIndex].x + " x " + resolutions[resolutionIndex].y + "  >";
+    string CameraLabel() => (follow!=null?follow.firstPerson:GameSettings.FirstPerson(true))?"FIRST PERSON  >":"THIRD PERSON  >";
     void ApplyDisplay()
     {
         var size = resolutions[resolutionIndex];
@@ -142,6 +146,10 @@ public class SettingsMenu : MonoBehaviour
     {
         var pad = Gamepad.current;
         bool toggle = (pad != null && pad.startButton.wasPressedThisFrame) || (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame);
+        var flow=GetComponent<SceneFlowUI>();
+        if(!opened && flow!=null && flow.help!=null && flow.help.gameObject.activeSelf &&
+            ((Keyboard.current!=null&&Keyboard.current.escapeKey.wasPressedThisFrame)||(pad!=null&&pad.buttonEast.wasPressedThisFrame)))
+        { flow.ToggleHelp();return; }
         if (toggle) { if (opened) Close(); else Open(); }
         else if (opened && pad != null && pad.buttonEast.wasPressedThisFrame) Close();
     }
@@ -151,6 +159,7 @@ public class SettingsMenu : MonoBehaviour
         if (opened || popup == null) return;
         previousTimeScale = Time.timeScale; previousAudioPause = AudioListener.pause;
         opened = true; Time.timeScale = 0; AudioListener.pause = true; popup.SetActive(true);
+        Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
         if (EventSystem.current != null)
         {
             previousNavigation = EventSystem.current.sendNavigationEvents; previousSelection = EventSystem.current.currentSelectedGameObject;

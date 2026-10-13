@@ -72,7 +72,7 @@ public class PlayerCombat : MonoBehaviour
     public float SwitchBonusRemaining { get { return Mathf.Max(0f, switchBonusUntil - Time.time); } }
     public float LightningBuffRemaining { get { return Mathf.Max(0f, lightningBuffUntil - Time.time); } }
     public float WindBuffRemaining { get { return Mathf.Max(0f, windBuffUntil - Time.time); } }
-    public float AttackSpeed { get { return WindBuffRemaining > 0f ? windAttackSpeed : 1f; } }
+    public float AttackSpeed { get { var build=GetComponent<PlayerBuild>(); return (WindBuffRemaining > 0f ? windAttackSpeed : 1f)*(build!=null?build.SpeedMultiplier:1f); } }
 
     PlayerController controller;
     PlayerInputs input;
@@ -102,7 +102,7 @@ public class PlayerCombat : MonoBehaviour
 
     void Update()
     {
-        if (SettingsMenu.BlocksGameplay) return;
+        if (SettingsMenu.BlocksGameplay || RunManager.RewardOpen) return;
         if (IsDead) return;
         if (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Playing) return;
         if (controller.IsStaggered) return;
@@ -131,6 +131,16 @@ public class PlayerCombat : MonoBehaviour
     }
 
     void Buffer(int t) { bufferedType = t; bufferedUntil = Time.time + 0.25f; }
+
+    // Called on a newly reconstructed player, before the first combat frame.
+    public void ResetRunResources()
+    {
+        Hp = maxHp;
+        Gauge = 0f;
+        CurrentElement = Element.Fire;
+        switchBonusUntil = lightningBuffUntil = windBuffUntil = 0f;
+        ApplySwordColor();
+    }
 
     // ---------- 属性 ----------
     void SwitchElement(int step)
@@ -170,6 +180,7 @@ public class PlayerCombat : MonoBehaviour
         PlayOrFlash(finisher ? FxKind.Heavy : FxKind.Slash, true, range, 0.1f);
         DoHit(range, lightAngle, lightDamage * (finisher ? 2f : 1f),
               lightKnockback * (finisher ? 4f : 1f), finisher, true);
+        if(finisher)GetComponent<PlayerBuild>()?.Finisher();
 
         lastAttackTime = Time.time;
         float spd = AttackSpeed;   // 風の強化中は攻撃間隔が短くなる
@@ -200,7 +211,7 @@ public class PlayerCombat : MonoBehaviour
         yield return new WaitForSeconds(0.18f);
         if (IsDead) yield break;
         PlayOrFlash(FxKind.Heavy, true, heavyRange, 0.15f);
-        DoHit(heavyRange, heavyAngle, heavyDamage, heavyKnockback, true, true);
+        DoHit(heavyRange, heavyAngle, heavyDamage, heavyKnockback, true, true, true);
     }
 
     // ---------- 必殺技(属性ごとに別) ----------
@@ -231,6 +242,7 @@ public class PlayerCombat : MonoBehaviour
         {
             case Element.Fire:
                 DoHit(specialRadius, 360f, specialDamage, specialKnockback, true, false);
+                GetComponent<PlayerBuild>()?.FireBurst(transform.position,specialRadius,specialDamage);
                 break;
             case Element.Ice:
                 IceSpecial();
@@ -271,6 +283,9 @@ public class PlayerCombat : MonoBehaviour
         DamagePopup.Spawn(transform.position + Vector3.up * 2.2f, amount, new Color(0.4f, 1f, 0.5f), false);
     }
 
+    public void RestoreHealth(float amount) { if(!IsDead && amount>0)Heal(amount); }
+    public void AddGauge(float amount) { if(!IsDead)Gauge=Mathf.Clamp(Gauge+amount,0,maxGauge); }
+
     static string SpecialName(Element e)
     {
         switch (e)
@@ -283,12 +298,15 @@ public class PlayerCombat : MonoBehaviour
     }
 
     // 範囲内の敵にダメージ。戻り値=ヒット数
-    int DoHit(float range, float angle, float damage, float knockback, bool big, bool gainGauge)
+    int DoHit(float range, float angle, float damage, float knockback, bool big, bool gainGauge, bool heavy=false)
     {
+        var build=GetComponent<PlayerBuild>();
+        if(build!=null&&CurrentElement==Element.Fire)range*=build.FireRangeMultiplier;
         int count = Physics.OverlapSphereNonAlloc(transform.position + Vector3.up, range, buffer);
         hitSet.Clear();
         int hits = 0;
         float mult = SwitchBonusRemaining > 0f ? switchBonusMultiplier : 1f;
+        if(build!=null)mult*=build.BeginAttack();
         GameObject hitPrefab = GetFx(FxKind.Hit);
 
         for (int i = 0; i < count; i++)
@@ -302,7 +320,10 @@ public class PlayerCombat : MonoBehaviour
             if (angle < 359f && dist > e.Radius + 0.8f && Vector3.Angle(transform.forward, to) > angle * 0.5f) continue;
 
             Vector3 dir = dist > 0.01f ? to / dist : transform.forward;
-            e.TakeHit(damage * mult, CurrentElement, dir * knockback);
+            bool wasFrozen=e.IsFrozen;
+            float hitDamage=build!=null?build.ElementDamage(e,damage*mult,CurrentElement):damage*mult;
+            e.TakeHit(hitDamage, CurrentElement, dir * knockback);
+            if(build!=null)build.OnHit(e,damage*mult,heavy,gainGauge&&!heavy,wasFrozen);
             if(hits<6)CombatPresentation.Impact(e.transform.position+Vector3.up*.12f,ElementUtil.GetColor(CurrentElement),big);
             hits++;
             if (hitPrefab != null && hits <= 12)   // 大量ヒット時の負荷対策で上限あり
@@ -347,12 +368,13 @@ public class PlayerCombat : MonoBehaviour
     // ---------- 被ダメージ ----------
     public void TakeDamage(float dmg)
     {
-        if (SettingsMenu.IsOpen) return;
+        if (SettingsMenu.IsOpen || RunManager.RewardOpen) return;
         if (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Playing) return;
         if (IsDead || dmg <= 0f || Time.time < invincibleUntil) return;
         if (controller.IsDodging)
         {
-            Gauge = Mathf.Min(maxGauge, Gauge + 8f);   // ジャスト回避でゲージ回復
+            if(Time.time-controller.DodgeStarted<=.12f)
+                GetComponent<PlayerBuild>()?.JustDodge(controller.DodgeStarted);
             Rumble.Play(0.1f, 0.5f, 0.1f);
             return;
         }

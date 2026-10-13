@@ -1,0 +1,16 @@
+var gm=GameManager.Instance;
+var rewards=gm.GetComponent<UpgradeManager>();
+var build=gm.GetComponent<RunManager>().Build;
+var waves=gm.GetComponent<EnemyWaveManager>();
+if(!rewards.IsChoosing || rewards.Choices.Count!=3 || UnityEngine.Time.timeScale!=0)throw new System.Exception("Reward state invalid");
+var unique=new System.Collections.Generic.HashSet<UpgradeEffect>();
+foreach(var choice in rewards.Choices)if(!unique.Add(choice.effect))throw new System.Exception("Duplicate reward");
+rewards.Choose(0);
+if(build.Upgrades.Count!=1 || waves.Wave!=2 || UnityEngine.Time.timeScale!=1)throw new System.Exception("Reward did not advance wave");
+float hp=build.GetComponent<PlayerCombat>().maxHp;
+float attack=build.GetComponent<PlayerCombat>().lightDamage;
+foreach(var data in rewards.catalog)build.Apply(data);
+if(build.Stacks(UpgradeEffect.MaxHealth)<1 || build.GetComponent<PlayerCombat>().maxHp<=hp || build.GetComponent<PlayerCombat>().lightDamage<=attack || build.SpeedMultiplier!=1.15f)throw new System.Exception("Build modifiers invalid");
+var pc=build.GetComponent<PlayerCombat>();
+pc.TakeDamage(1000000);
+return "3 unique choices; selection advances wave; all 16 upgrades applied; player death triggered; state="+gm.State;

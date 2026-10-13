@@ -40,7 +40,7 @@ public class HUD : MonoBehaviour
         var r=Rect(name,parent,anchor,pos,size);var text=r.gameObject.AddComponent<Text>();
         text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");text.fontSize=fontSize;text.color=color;
         text.alignment=align;text.raycastTarget=false;text.verticalOverflow=VerticalWrapMode.Overflow;
-        var shadow=r.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(0,0,0,.8f);shadow.effectDistance=new Vector2(1,-1);return text;
+        var shadow=r.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(0,0,0,.8f);shadow.effectDistance=new Vector2(1,-1);LocalizedLabel.Bind(text);return text;
     }
     BattleRingGraphic Ring(string name,Transform parent,float diameter,Color color,float thickness)
     {
@@ -83,7 +83,7 @@ public class HUD : MonoBehaviour
         var flame=flameRect.gameObject.AddComponent<BattleFlameGraphic>();flame.color=Lime;flame.raycastTarget=false;
         chargeLabel=Label("Charge percent",special,new Vector2(.5f,.5f),new Vector2(0,94),new Vector2(160,34),25,White);
         specialLabel=Label("Special status",special,new Vector2(.5f,.5f),new Vector2(0,-100),new Vector2(290,30),17,Gold);
-        Label("Special input",special,new Vector2(.5f,.5f),new Vector2(0,-129),new Vector2(260,26),14,White).text="B / L  ·  SPECIAL";
+        Label("Special input",special,new Vector2(.5f,.5f),new Vector2(0,-129),new Vector2(260,26),14,White).text="Z / B  ·  ULT";
 
         var combo=Rect("Combo",root,new Vector2(0,0),new Vector2(62,154),new Vector2(270,170));combo.pivot=new Vector2(0,.5f);
         comboGroup=combo.gameObject.AddComponent<CanvasGroup>();comboGroup.alpha=0;
@@ -110,7 +110,7 @@ public class HUD : MonoBehaviour
         bossFill=Bar("Boss health",root,new Vector2(.5f,1),new Vector2(0,-141),new Vector2(700,10),new Color(.85f,.25f,.5f));
         banner=Label("Battle banner",root,new Vector2(.5f,.5f),new Vector2(0,140),new Vector2(1300,100),64,White);
         result=Label("Battle result",root,new Vector2(.5f,.5f),new Vector2(0,58),new Vector2(1300,50),25,Gold);
-        Label("Combat inputs",root,new Vector2(1,0),new Vector2(-335,29),new Vector2(590,27),14,new Color(.9f,.9f,.85f,.75f),TextAnchor.MiddleRight).text="J / X  ATTACK    K / Y  HEAVY    SPACE / A  DODGE";
+        Label("Combat inputs",root,new Vector2(1,0),new Vector2(-335,29),new Vector2(590,27),14,new Color(.9f,.9f,.85f,.75f),TextAnchor.MiddleRight).text="MOUSE: LOOK    F: ATTACK    G: HEAVY    SPACE: DODGE";
         clearPanel=Rect("Clear results",root,new Vector2(.74f,.5f),Vector2.zero,new Vector2(650,600));
         clearGroup=clearPanel.gameObject.AddComponent<CanvasGroup>();clearGroup.alpha=0;clearGroup.blocksRaycasts=false;
         Box("Result backing",clearPanel,new Vector2(.5f,.5f),Vector2.zero,new Vector2(650,600),new Color(.035f,.045f,.07f,.92f));
@@ -125,6 +125,7 @@ public class HUD : MonoBehaviour
         if(root==null)return;
         if(player==null)player=FindFirstObjectByType<PlayerCombat>();
         var gm=GameManager.Instance;canvas.enabled=player!=null&&gm!=null;if(!canvas.enabled)return;
+        if(gm.ResultVisible || gm.State==GameManager.GameState.GameOver){canvas.enabled=false;return;}
         if(gm.State==GameManager.GameState.Cleared)
         {
             for(int i=0;i<root.childCount;i++)
@@ -165,10 +166,13 @@ public class HUD : MonoBehaviour
             elements[i].color=Color.Lerp(elements[i].color,tint,blend);
             elementRects[i].localScale=Vector3.Lerp(elementRects[i].localScale,Vector3.one*(active?1.1f:1),blend);
         }
-        killsLabel.text="KILLS  "+gm.Kills+" <color=#B8AB7C>/ "+gm.killsToBoss+"</color>";
+        var waves=gm.GetComponent<EnemyWaveManager>();
+        killsLabel.text=waves!=null?"WAVE "+Mathf.Min(waves.Wave,waves.normalWaves)+" / "+waves.normalWaves+"    KILLS "+gm.Kills:"KILLS "+gm.Kills+" / "+gm.killsToBoss;
         bool boss=Enemy.Boss!=null&&!Enemy.Boss.IsDead;bossLabel.gameObject.SetActive(boss);bossFill.transform.parent.gameObject.SetActive(boss);
-        if(boss){bossLabel.text="B O S S";SetBar(bossFill,Enemy.Boss.Hp/Mathf.Max(1,Enemy.Boss.maxHp),700);}
+        if(boss){bossLabel.text="B O S S   ·   BREAK "+Mathf.RoundToInt(Enemy.Boss.BreakRemaining)+"%";SetBar(bossFill,Enemy.Boss.Hp/Mathf.Max(1,Enemy.Boss.maxHp),700);}
         buffsLabel.text=(player.LightningBuffRemaining>0?"THUNDER MODE  "+player.LightningBuffRemaining.ToString("0.0")+"s   ":"")+(player.WindBuffRemaining>0?"WIND MODE  "+player.WindBuffRemaining.ToString("0.0")+"s":"");
+        var build=player.GetComponent<PlayerBuild>();
+        if(build!=null&&build.SynergyText.Length>0)buffsLabel.text+="\nSYNERGY  "+build.SynergyText;
         banner.text=gm.BannerRemaining>0?gm.BannerText:"";
         result.text=gm.State!=GameManager.GameState.Playing?"MAX COMBO  "+gm.MaxCombo+"    ·    R TO RESTART / OPTIONS FOR SETTINGS":"";
     }

@@ -23,6 +23,8 @@ public class SceneFlowUI : MonoBehaviour
         origin = content.GetComponent<RectTransform>().anchoredPosition;
         if (titleScreen)
         {
+            Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            AddTitleSettings();
             if (primaryButton != null) primaryButton.Select();
         }
         else if (EventSystem.current != null)
@@ -32,6 +34,38 @@ public class SceneFlowUI : MonoBehaviour
             EventSystem.current.SetSelectedGameObject(null);
         }
         StartCoroutine(Reveal());
+        if(help!=null)
+        {
+            var controls=help.transform.Find("Controls");
+            if(controls!=null)
+            {
+                var text=controls.GetComponent<Text>();
+                text.rectTransform.anchoredPosition=new Vector2(0,-5);
+                text.rectTransform.sizeDelta=new Vector2(720,285);
+                text.fontSize=21;
+            }
+        }
+        LocalizedLabel.BindTree(transform);
+    }
+
+    void AddTitleSettings()
+    {
+        var settings=GetComponent<SettingsMenu>();
+        if(settings==null)settings=gameObject.AddComponent<SettingsMenu>();
+        var how=content.transform.Find("How To Play");
+        if(how==null || content.transform.Find("Title Settings")!=null)return;
+        var copy=Instantiate(how.gameObject,content.transform);
+        copy.name="Title Settings";
+        var rect=copy.GetComponent<RectTransform>();
+        rect.sizeDelta=new Vector2(278,60);rect.anchoredPosition=new Vector2(-268,-303);
+        var howRect=how.GetComponent<RectTransform>();
+        howRect.sizeDelta=new Vector2(278,60);howRect.anchoredPosition=new Vector2(-560,-303);
+        var howLabel=how.GetComponentInChildren<Text>();howLabel.text="HOW TO PLAY";
+        howLabel.rectTransform.sizeDelta=new Vector2(246,60);
+        var label=copy.GetComponentInChildren<Text>();label.text="SETTINGS";
+        label.rectTransform.sizeDelta=new Vector2(246,60);
+        var button=copy.GetComponent<Button>();
+        button.onClick=new Button.ButtonClickedEvent();button.onClick.AddListener(settings.Open);
     }
 
     IEnumerator Reveal()
@@ -60,15 +94,13 @@ public class SceneFlowUI : MonoBehaviour
             emblem.localEulerAngles = new Vector3(0, 0, -Time.unscaledTime * 3);
             emblem.localScale = Vector3.one * (1 + Mathf.Sin(Time.unscaledTime * .8f) * .015f);
         }
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && help != null)
-            ToggleHelp();
     }
 
-    public void StartBattle() { if (!transitioning) StartCoroutine(ChangeScene("battleScene")); }
-    public void ReturnToTitle() { if (!transitioning) StartCoroutine(ChangeScene("TitleScene")); }
+    public void StartBattle() { if (!transitioning && !SettingsMenu.IsOpen) StartCoroutine(ChangeScene("battleScene")); }
+    public void ReturnToTitle() { if (!transitioning && !SettingsMenu.IsOpen) StartCoroutine(ChangeScene("TitleScene")); }
     public void ToggleHelp()
     {
-        if (transitioning || help == null) return;
+        if (transitioning || help == null || SettingsMenu.IsOpen) return;
         bool show = !help.gameObject.activeSelf;
         help.gameObject.SetActive(show);
         content.interactable = !show;

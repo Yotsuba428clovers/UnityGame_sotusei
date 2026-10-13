@@ -1,0 +1,11 @@
+var gm=GameManager.Instance;
+var pc=UnityEngine.Object.FindFirstObjectByType<PlayerCombat>();
+pc.GetComponent<PlayerController>().EndBattle();
+typeof(PlayerCombat).GetField("invincibleUntil",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).SetValue(pc,0f);
+pc.TakeDamage(1000000);
+if(gm.State!=GameManager.GameState.GameOver || !pc.IsDead)throw new System.Exception("Death transition invalid");
+int runs=SaveManager.Load().runs;
+gm.GameOver();
+if(SaveManager.Load().runs!=runs || runs!=UnityEditor.SessionState.GetInt("RogueliteTest.Runs",0)+1)throw new System.Exception("Record not once-only");
+gm.RestartBattle();
+return "Death and once-only save verified; restarting scene";

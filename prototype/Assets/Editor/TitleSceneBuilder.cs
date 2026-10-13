@@ -126,7 +126,7 @@ public static class TitleSceneBuilder
         var shade = Panel("Backdrop", flow.help.transform, Vector2.zero, new Vector2(1600,900), new Color(0,0,0,.9f)); shade.raycastTarget = true;
         Panel("Help Card", flow.help.transform, Vector2.zero, new Vector2(860,590), Ink);
         Label("Heading", flow.help.transform, "MASTER THE ELEMENTS", new Vector2(0,205), new Vector2(720,80), 34, Ivory);
-        Label("Controls", flow.help.transform, "MOVE       WASD / Left stick\nCAMERA   Arrow keys / Right stick\nATTACK    J / X     ·     HEAVY    K / Y\nDODGE      Space / A     ·     SPECIAL   L / B\nELEMENT  Q, E / LB, RB\n\nChain attacks. Switch elements. Defeat the boss.", new Vector2(0,20), new Vector2(720,270), 23, Muted);
+        Label("Controls", flow.help.transform, UiLanguage.EnglishControls, new Vector2(0,-5), new Vector2(720,285), 21, Muted);
         Button("Close Help", flow.help.transform, "BACK TO TITLE                                          →", new Vector2(0,-205), new Vector2(720,64), true, flow.ToggleHelp);
         flow.help.gameObject.SetActive(false);
         Curtain(flow);

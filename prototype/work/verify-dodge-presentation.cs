@@ -1,0 +1,17 @@
+var presentation=CombatPresentation.Instance;
+var build=GameManager.Instance.GetComponent<RunManager>().Build;
+var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+var update=typeof(CombatPresentation).GetMethod("Update",flags);
+build.JustDodge(-123f);
+update.Invoke(presentation,null);
+if(UnityEngine.Time.timeScale<.34f||UnityEngine.Time.timeScale>=1)throw new System.Exception("Slow motion missing");
+if(UnityEngine.GameObject.Find("Just Dodge Ground Ring")==null||UnityEngine.GameObject.Find("Just Dodge Halo")==null)throw new System.Exception("Dodge VFX missing");
+float started=(float)typeof(CombatPresentation).GetField("dodgeStarted",flags).GetValue(presentation);
+build.JustDodge(-123f);
+if((float)typeof(CombatPresentation).GetField("dodgeStarted",flags).GetValue(presentation)!=started)throw new System.Exception("Repeated dodge retriggered VFX");
+typeof(CombatPresentation).GetField("dodgeUntil",flags).SetValue(presentation,UnityEngine.Time.unscaledTime-1);
+typeof(CombatPresentation).GetField("slowUntil",flags).SetValue(presentation,0f);
+typeof(CombatPresentation).GetField("hitUntil",flags).SetValue(presentation,0f);
+update.Invoke(presentation,null);
+if(UnityEngine.Time.timeScale!=1)throw new System.Exception("Time scale not restored");
+return "PASS: slow motion, two VFX rings, once per dodge, normal speed restored";

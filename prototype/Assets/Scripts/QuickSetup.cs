@@ -18,6 +18,9 @@ public class QuickSetup : MonoBehaviour
     [Range(0,1)] public float combatSoundVolume=.35f;
     public bool createPlaceholderSword = true;
     public int killsToBoss = 50;
+    [Header("背景")]
+    public Material groundMaterial;
+    [Min(.5f)] public float groundTileWorldSize = 8f;
 
     [Header("エフェクト(Epic Toon FXのPrefabを割り当て)")]
     public ElementFx[] elementFx = new ElementFx[]
@@ -49,7 +52,15 @@ public class QuickSetup : MonoBehaviour
         var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
         ground.name = "Ground";
         ground.transform.localScale = new Vector3(30f, 1f, 30f);
-        ground.GetComponent<Renderer>().material.color = new Color(0.22f, 0.25f, 0.3f);
+        var surface=groundMaterial!=null?groundMaterial:Resources.Load<Material>("Environment/GrassStoneGround");
+        if(surface!=null)
+        {
+            var tiled=new Material(surface);
+            tiled.mainTextureScale=Vector2.one*(300f/Mathf.Max(.5f,groundTileWorldSize));
+            ground.GetComponent<Renderer>().sharedMaterial=tiled;
+            ground.AddComponent<RuntimeGroundMaterial>().ownedMaterial=tiled;
+        }
+        else ground.GetComponent<Renderer>().material.color = new Color(0.22f, 0.25f, 0.3f);
 
         // プレイヤー(足元が原点)
         var player = new GameObject("Player");

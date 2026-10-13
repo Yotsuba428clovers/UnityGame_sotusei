@@ -1,0 +1,11 @@
+var gm=GameManager.Instance;
+var run=gm.GetComponent<RunManager>();
+var build=run.Build;
+var rewards=gm.GetComponent<UpgradeManager>();
+var waves=gm.GetComponent<EnemyWaveManager>();
+if(run.State!=RunManager.RunState.Playing || build.Upgrades.Count!=0 || build.GetComponent<PlayerCombat>().Gauge!=0)throw new System.Exception("Initial state invalid");
+UnityEditor.SessionState.SetString("RogueliteTest.SaveBackup",UnityEngine.PlayerPrefs.GetString("Prototype.Roguelite.Records.v1",""));
+UnityEditor.SessionState.SetInt("RogueliteTest.Runs",SaveManager.Load().runs);
+typeof(EnemyWaveManager).GetField("remaining",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).SetValue(waves,0);
+foreach(var enemy in Enemy.All.ToArray())enemy.TakeHit(100000,Element.Fire,UnityEngine.Vector3.zero);
+return "Initial build empty; first wave defeated; catalog="+rewards.catalog.Length;
