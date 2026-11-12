@@ -7,7 +7,7 @@ public class CameraFollow : MonoBehaviour
     public bool firstPerson;
     public float eyeHeight = 1.65f;
     public float distance = 7.5f;
-    public float height = 1.6f;
+    public float height = 1.35f;
     public float sensitivity = 140f;
     public float minPitch = -10f;
     public float maxPitch = 55f;
@@ -35,6 +35,12 @@ public class CameraFollow : MonoBehaviour
         SetFirstPerson(GameSettings.FirstPerson(firstPerson));
     }
 
+    public void SetInitialThirdPersonView(float angle,float orbitDistance)
+    {
+        pitch=Mathf.Clamp(angle,minPitch,maxPitch);
+        distance=Mathf.Max(1f,orbitDistance);
+    }
+
     public void SetFirstPerson(bool enabled)
     {
         RestorePlayerModel();
@@ -43,7 +49,7 @@ public class CameraFollow : MonoBehaviour
         if (victory || victoryPrelude) return;
         if (!firstPerson)
         {
-            baseFov = 60f;
+            baseFov = 55f;
             if (view != null) { view.fieldOfView = baseFov; view.nearClipPlane = .1f; }
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
             return;
@@ -107,7 +113,7 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        if (SettingsMenu.BlocksGameplay || RunManager.RewardOpen) return;
+        if (SettingsMenu.BlocksGameplay) return;
         if (victoryPrelude) return;
         if (victory)
         {
@@ -142,6 +148,12 @@ public class CameraFollow : MonoBehaviour
 
         Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 pos = firstPerson ? target.position + Vector3.up * eyeHeight : smoothed - rot * Vector3.forward * distance;
+        if (!firstPerson)
+        {
+            Vector3 direction = rot * Vector3.back;
+            float clear = ArenaGeometry.ClearDistance(smoothed, direction, distance, .20f);
+            pos = smoothed + direction * Mathf.Max(0f, clear - (clear < distance ? .12f : 0f));
+        }
 
         if (shakeTime > 0f)
         {

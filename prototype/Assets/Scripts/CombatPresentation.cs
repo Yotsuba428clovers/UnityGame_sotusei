@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// Shared presentation and time effects so hitstop cannot overwrite a special's slow motion.
+// Shared presentation for audio, impact effects and the perfect-dodge slowdown.
 public class CombatPresentation : MonoBehaviour
 {
     public AudioClip swingSound, hitSound, warningSound, slamSound, specialSound;
@@ -15,7 +15,7 @@ public class CombatPresentation : MonoBehaviour
     float dodgeStarted, dodgeUntil;
     AudioSource audioSource, ambience;
     AudioClip[] generated;
-    float hitUntil, slowUntil, flashAlpha, nextSound;
+    float flashAlpha, nextSound;
     float nextWarning,nextSlam;
     Color flashColor;
     Image flash;
@@ -70,8 +70,6 @@ public class CombatPresentation : MonoBehaviour
         float volume=self.soundVolume*Mathf.Clamp01(1-distance/42f);
         self.audioSource.PlayOneShot(clip,volume);
     }
-    public static void HitStop(float seconds)
-    {if(Instance!=null)Instance.hitUntil=Mathf.Max(Instance.hitUntil,Time.unscaledTime+seconds);}
     public static void PlayerDamage()
     {
         var self=Instance;if(self==null)return;
@@ -84,8 +82,6 @@ public class CombatPresentation : MonoBehaviour
         if(self==null)return;
         self.dodgeStarted=Time.unscaledTime;
         self.dodgeUntil=self.dodgeStarted+Mathf.Max(.05f,self.justDodgeDuration);
-        // Replace the old near-freeze with a readable slow-motion window.
-        self.hitUntil=Time.unscaledTime;
         self.flashColor=self.justDodgeColor;
         self.flashAlpha=.08f;
         var ground=CombatPulse.Create(position,self.justDodgeColor,2.8f,.4f);
@@ -101,9 +97,8 @@ public class CombatPresentation : MonoBehaviour
     public static void Special(Element element,Vector3 position)
     {
         var self=Instance;if(self==null)return;
-        self.slowUntil=Time.unscaledTime+.38f;
         self.flashColor=ElementUtil.GetColor(element);self.flashAlpha=.12f;
-        CameraFollow.Punch(9,.7f);Sound(4,position);
+        Sound(4,position);
     }
     public static void Impact(Vector3 position,Color color,bool heavy)
     {
@@ -111,10 +106,28 @@ public class CombatPresentation : MonoBehaviour
         if(Instance==null)return;
         Sound(1,position);
     }
+    public static void LightningArc(Vector3 from, Vector3 to, Color color)
+    {
+        if (Instance == null) return;
+        var arc = new GameObject("Chain lightning");
+        var line = arc.AddComponent<LineRenderer>();
+        line.sharedMaterial = Instance.effectMaterial;
+        line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        line.positionCount = 6;
+        line.startWidth = .12f;
+        line.endWidth = .07f;
+        line.startColor = Color.Lerp(color, Color.white, .65f);
+        line.endColor = color;
+        line.SetPosition(0, from);
+        for (int i = 1; i < 5; i++)
+            line.SetPosition(i, Vector3.Lerp(from, to, i / 5f) + Random.insideUnitSphere * .27f);
+        line.SetPosition(5, to);
+        Destroy(arc, .15f);
+    }
     void Update()
     {
-        if (SettingsMenu.IsOpen || RunManager.RewardOpen) return;
-        float scale=Time.unscaledTime<hitUntil?.035f:(Time.unscaledTime<slowUntil?.32f:1);
+        if (SettingsMenu.IsOpen) return;
+        float scale = 1f;
         if(Time.unscaledTime<dodgeUntil)
         {
             float progress=Mathf.Clamp01((Time.unscaledTime-dodgeStarted)/Mathf.Max(.05f,justDodgeDuration));

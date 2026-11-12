@@ -5,6 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
+[DefaultExecutionOrder(-100)]
 public class SettingsMenu : MonoBehaviour
 {
     static SettingsMenu instance;

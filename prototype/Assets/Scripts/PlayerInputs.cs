@@ -2,11 +2,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 // PC / ゲームパッド入力。Input Systemのアクションをコードで定義。
-// X:通常攻撃 Y:強攻撃 A:回避 B:必殺技 LB/RB:属性切り替え
-// PC: WASD移動 / マウス視点 / F通常攻撃 / G強攻撃 / Space回避 / Z ULT / Q,E属性切替
 public class PlayerInputs : MonoBehaviour
 {
-    InputAction move, look, mouseLook, attack, heavy, dodge, special, next, prev;
+    InputAction move, look, mouseLook, attack, heavy, dodge, special;
+    readonly InputAction[] elements = new InputAction[4];
     bool ownsCursor;
     int mouseCaptureFrame=-100;
 
@@ -19,8 +18,15 @@ public class PlayerInputs : MonoBehaviour
     public bool Heavy => heavy.WasPressedThisFrame();
     public bool Dodge => dodge.WasPressedThisFrame();
     public bool Special => special.WasPressedThisFrame();
-    public bool NextElement => next.WasPressedThisFrame();
-    public bool PrevElement => prev.WasPressedThisFrame();
+    public Element? SelectedElement
+    {
+        get
+        {
+            for (int i = 0; i < elements.Length; i++)
+                if (elements[i].WasPressedThisFrame()) return (Element)i;
+            return null;
+        }
+    }
 
     static InputAction Btn(string name, string pad, string key)
     {
@@ -42,24 +48,28 @@ public class PlayerInputs : MonoBehaviour
         look.AddBinding("<Gamepad>/rightStick");
         mouseLook=new InputAction("Mouse Look",InputActionType.PassThrough,"<Mouse>/delta");
 
-        attack = Btn("Attack", "<Gamepad>/buttonWest", "<Keyboard>/f");
-        heavy = Btn("Heavy", "<Gamepad>/buttonNorth", "<Keyboard>/g");
+        attack = Btn("Attack", "<Gamepad>/buttonWest", "<Mouse>/leftButton");
+        heavy = Btn("Heavy", "<Gamepad>/buttonNorth", "<Mouse>/rightButton");
         dodge = Btn("Dodge", "<Gamepad>/buttonSouth", "<Keyboard>/space");
-        special = Btn("Special", "<Gamepad>/buttonEast", "<Keyboard>/z");
-        next = Btn("NextElement", "<Gamepad>/rightShoulder", "<Keyboard>/e");
-        prev = Btn("PrevElement", "<Gamepad>/leftShoulder", "<Keyboard>/q");
+        special = Btn("Special", "<Gamepad>/rightShoulder", "<Keyboard>/f");
+        elements[(int)Element.Fire] = Btn("Fire", "<Gamepad>/dpad/up", "<Keyboard>/1");
+        elements[(int)Element.Wind] = Btn("Wind", "<Gamepad>/dpad/right", "<Keyboard>/2");
+        elements[(int)Element.Ice] = Btn("Ice", "<Gamepad>/dpad/down", "<Keyboard>/3");
+        elements[(int)Element.Lightning] = Btn("Lightning", "<Gamepad>/dpad/left", "<Keyboard>/4");
     }
 
     void OnEnable()
     {
         move.Enable(); look.Enable(); mouseLook.Enable(); attack.Enable(); heavy.Enable();
-        dodge.Enable(); special.Enable(); next.Enable(); prev.Enable();
+        dodge.Enable(); special.Enable();
+        foreach (var element in elements) element.Enable();
     }
 
     void OnDisable()
     {
         move.Disable(); look.Disable(); mouseLook.Disable(); attack.Disable(); heavy.Disable();
-        dodge.Disable(); special.Disable(); next.Disable(); prev.Disable();
+        dodge.Disable(); special.Disable();
+        foreach (var element in elements) element.Disable();
         ReleaseCursor();
     }
 
@@ -67,7 +77,7 @@ public class PlayerInputs : MonoBehaviour
     {
         var game=GameManager.Instance;
         bool capture=Application.isFocused && Mouse.current!=null && game!=null &&
-            game.State==GameManager.GameState.Playing && !SettingsMenu.BlocksGameplay && !RunManager.RewardOpen;
+            game.State==GameManager.GameState.Playing && !SettingsMenu.BlocksGameplay;
         if(!capture){ReleaseCursor();return;}
         if(!ownsCursor || Cursor.lockState!=CursorLockMode.Locked)
         {
@@ -84,6 +94,7 @@ public class PlayerInputs : MonoBehaviour
     void OnDestroy()
     {
         move?.Dispose();look?.Dispose();mouseLook?.Dispose();attack?.Dispose();heavy?.Dispose();
-        dodge?.Dispose();special?.Dispose();next?.Dispose();prev?.Dispose();
+        dodge?.Dispose();special?.Dispose();
+        foreach (var element in elements) element?.Dispose();
     }
 }

@@ -18,6 +18,7 @@ public class PlayerController : MonoBehaviour
 
     public bool IsDodging { get; private set; }
     public float DodgeStarted { get; private set; }
+    public float DodgeProgress => Mathf.Clamp01((Time.time - DodgeStarted) / Mathf.Max(.01f, dodgeDuration));
     public bool Locked { get; set; }
     public bool IsStaggered { get { return Time.time < staggerUntil; } }
     float staggerUntil;
@@ -37,10 +38,12 @@ public class PlayerController : MonoBehaviour
     CharacterController cc;
     PlayerInputs input;
     Animator anim;
+    PlayerCombat combat;
     bool hasSpeedParam;
     float vy, dodgeEnd, nextDodge, slowUntil, slowMul = 1f;
     Vector3 dodgeDir;
     float dodgeSpeedNow;
+    public bool DodgeReady => !Locked && !IsStaggered && !IsDodging && Time.time >= nextDodge;
 
     void Awake()
     {
@@ -50,6 +53,7 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
+        combat = GetComponent<PlayerCombat>();
         anim = GetComponentInChildren<Animator>();
         hasSpeedParam = AnimHelper.Has(anim, "Speed", AnimatorControllerParameterType.Float);
     }
@@ -61,15 +65,20 @@ public class PlayerController : MonoBehaviour
         slowMul = multiplier;
     }
 
-    // 回避(無敵ダッシュ)を開始。通常の回避も、雷の強攻撃ダッシュもこれを使う
-    public void BeginDodge(Vector3 dir, float speed, float duration)
+    public void StepForward(float distance)
+    {
+        cc.Move(transform.forward * distance);
+    }
+
+    void BeginDodge(Vector3 direction)
     {
         IsDodging = true;
         DodgeStarted = Time.time;
-        dodgeEnd = Time.time + duration;
-        dodgeSpeedNow = speed;
-        dodgeDir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
-        FaceDirection(dodgeDir);
+        dodgeEnd = Time.time + dodgeDuration;
+        dodgeSpeedNow = dodgeSpeed;
+        bool directed = direction.sqrMagnitude > .01f;
+        dodgeDir = directed ? direction.normalized : -transform.forward;
+        if (directed) FaceDirection(dodgeDir);
         SetIgnoreEnemies(true);
         AnimHelper.Trigger(anim, "Dodge");
     }
@@ -99,14 +108,14 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (SettingsMenu.BlocksGameplay || RunManager.RewardOpen) return;
+        if (SettingsMenu.BlocksGameplay || !Application.isFocused) return;
         bool blocked = Locked || IsStaggered;
         Vector3 dir = blocked ? Vector3.zero : InputDirection();
 
-        if (!blocked && input.Dodge && !IsDodging && Time.time >= nextDodge)
+        if (DodgeReady && input.Dodge && (combat == null || combat.TryCancelForDodge()))
         {
             nextDodge = Time.time + dodgeCooldown;
-            BeginDodge(dir, dodgeSpeed, dodgeDuration);
+            BeginDodge(dir);
         }
 
         Vector3 vel = Vector3.zero;
@@ -117,11 +126,11 @@ public class PlayerController : MonoBehaviour
                 IsDodging = false;
                 SetIgnoreEnemies(false);
             }
-            vel = dodgeDir * dodgeSpeedNow;
+            else vel = dodgeDir * dodgeSpeedNow;
         }
         else if (!blocked)
         {
-            float mul = Time.time < slowUntil ? slowMul : 1f;
+            float mul = combat != null && combat.IsAttackPaused ? 0f : Time.time < slowUntil ? slowMul : 1f;
             vel = dir * moveSpeed * mul;
             if (dir.sqrMagnitude > 0.01f && mul > 0.2f)
             {

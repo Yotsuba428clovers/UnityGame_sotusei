@@ -1,93 +1,52 @@
 using UnityEngine;
 
-// プレイヤーの周囲に敵を湧かせる。撃破数が killsToBoss に達するとボス出現。
-// enemyPrefab / bossPrefab が空なら、カプセルの仮モデルを自動生成する。
+// One stage with three fixed formations: a cluster, a line and a spread.
 public class EnemySpawner : MonoBehaviour
 {
     public Transform player;
     public GameObject enemyPrefab;
-    public GameObject bossPrefab;
-    public GameObject[] additionalEnemyPrefabs;
 
-    public int maxAlive = 45;
-    public float spawnInterval = 0.35f;
-    public int batchSize = 3;
-    public int startingEnemies = 15;
-    public float minRadius = 14f;
-    public float maxRadius = 24f;
-
-    float nextSpawn;
-    bool bossSpawned;
-    int spawnCount;
+    static readonly Vector2[] Formation =
+    {
+        new Vector2(-1.5f, 6f), new Vector2(0f, 6f), new Vector2(1.5f, 6f),
+        new Vector2(-1.5f, 7.6f), new Vector2(0f, 7.6f), new Vector2(1.5f, 7.6f),
+        new Vector2(-0.75f, 9.2f), new Vector2(0.75f, 9.2f),
+        new Vector2(-8f, 12f), new Vector2(-5.3f, 12f), new Vector2(-2.6f, 12f),
+        new Vector2(0f, 12f), new Vector2(2.6f, 12f), new Vector2(5.3f, 12f), new Vector2(8f, 12f),
+        new Vector2(-8f, 4f), new Vector2(-6f, 8f), new Vector2(7f, 5f),
+        new Vector2(6f, 9f), new Vector2(0f, 16f)
+    };
 
     void Start()
     {
-        if (GetComponent<RunManager>() != null) return;
-        for (int i = 0; i < startingEnemies; i++) Spawn(false);
-    }
-
-    void Update()
-    {
-        var gm = GameManager.Instance;
-        if (gm == null || gm.State != GameManager.GameState.Playing || player == null) return;
-
-        if (!bossSpawned && gm.Kills >= gm.killsToBoss)
+        if (player == null) return;
+        foreach (Vector2 slot in Formation)
         {
-            bossSpawned = true;
-            Spawn(true);
-            gm.ShowBanner("BOSS APPEARS!", 3f);
-            return;
-        }
+            Vector3 offset = new Vector3(slot.x, 0f, slot.y);
+            Vector3 position = player.position + player.rotation * offset;
+            if (Physics.Raycast(position + Vector3.up * 3f, Vector3.down, out var floor, 6f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                position.y = floor.point.y;
 
-        if (Time.time < nextSpawn) return;
-        nextSpawn = Time.time + spawnInterval;
-        int limit = bossSpawned ? maxAlive / 2 : maxAlive;
-        for (int i = 0; i < batchSize; i++)
-            if (Enemy.All.Count < limit) Spawn(false);
+            Quaternion facing = Quaternion.LookRotation(-(player.rotation * offset));
+            GameObject actor = enemyPrefab != null ? Instantiate(enemyPrefab, position, facing) : CreateDefault(position);
+            if (!actor.TryGetComponent(out Enemy enemy)) enemy = actor.AddComponent<Enemy>();
+            enemy.isBoss = false;
+        }
+        GameManager.Instance?.ShowBanner("DEFEAT 20 ENEMIES", 1.8f);
     }
-
-    void Spawn(bool boss)
-    {
-        Vector2 c = Random.insideUnitCircle.normalized * (boss ? 16f : Random.Range(minRadius, maxRadius));
-        Vector3 pos = new Vector3(player.position.x + c.x, player.position.y, player.position.z + c.y);
-
-        GameObject prefab = boss ? bossPrefab : enemyPrefab;
-        if(!boss && additionalEnemyPrefabs!=null && additionalEnemyPrefabs.Length>0 && ++spawnCount%15==0)
-        {
-            var alternate=additionalEnemyPrefabs[Random.Range(0,additionalEnemyPrefabs.Length)];
-            if(alternate!=null)prefab=alternate;
-        }
-        GameObject go = prefab != null ? Instantiate(prefab, pos, Quaternion.identity) : CreateDefault(pos, boss);
-
-        Enemy e = go.GetComponent<Enemy>();
-        bool fresh = e == null;
-        if (fresh) e = go.AddComponent<Enemy>();
-        e.isBoss = boss;
-        if (fresh && boss)
-        {
-            e.maxHp = 1800f;
-            e.moveSpeed = 2.6f;
-            e.attackRange = 4f;
-            e.attackDamage = 30f;
-            e.attackCooldown = 2.5f;
-            e.attackWindup = 0.9f;
-        }
-    }
-
-    public void SpawnEnemy(bool boss) { if (player != null) Spawn(boss); }
 
     // 仮モデル(足元が原点のカプセル)
-    GameObject CreateDefault(Vector3 pos, bool boss)
+    GameObject CreateDefault(Vector3 pos)
     {
-        var root = new GameObject(boss ? "Boss" : "Enemy");
+        var root = new GameObject("Enemy");
         root.transform.position = pos;
-        root.transform.localScale = Vector3.one * (boss ? 2.4f : 1f);
 
         var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         Destroy(body.GetComponent<Collider>());
         body.transform.SetParent(root.transform, false);
         body.transform.localPosition = Vector3.up;
-        body.GetComponent<Renderer>().material.color = boss ? new Color(0.35f, 0.1f, 0.4f) : new Color(0.55f, 0.55f, 0.6f);
+        body.GetComponent<Renderer>().material.color = new Color(0.55f, 0.55f, 0.6f);
 
         // 向きが分かる「鼻」
         var nose = GameObject.CreatePrimitive(PrimitiveType.Cube);

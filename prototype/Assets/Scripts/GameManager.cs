@@ -10,13 +10,11 @@ public class GameManager : MonoBehaviour
 
     public static GameManager Instance { get; private set; }
 
-    public int killsToBoss = 50;
-    public float victoryDuration = 4.3f;
-    public float bossDefeatPause = .8f;
-    public float resultSlideDuration = .85f;
+    public const int KillGoal = 20;
+    public float victoryDuration = 1.25f;
+    public float resultSlideDuration = .55f;
     public bool ResultVisible { get; private set; }
     public float ClearTime { get; private set; }
-    float battleStarted;
     float runSeconds;
 
     public GameState State { get; private set; } = GameState.Playing;
@@ -34,7 +32,6 @@ public class GameManager : MonoBehaviour
     {
         Instance = this;
         Time.timeScale = 1f;
-        battleStarted = Time.time;
         run = GetComponent<RunManager>();
         if (run == null) run = gameObject.AddComponent<RunManager>();
     }
@@ -57,34 +54,26 @@ public class GameManager : MonoBehaviour
     {
         if (State != GameState.Playing) return;
         Kills++;
-        if (e.isBoss && State == GameState.Playing)
+        if (Kills >= KillGoal)
         {
             State = GameState.Cleared;
             ClearTime = runSeconds;
-            run.Finish(true);
-            BannerText = "";
-            foreach (var enemy in FindObjectsByType<Enemy>(FindObjectsSortMode.None))
-            {
-                if (enemy == e) continue;
-                enemy.gameObject.SetActive(false);
-                Destroy(enemy.gameObject);
-            }
-            foreach (var spawner in FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None)) spawner.enabled = false;
-            StartCoroutine(VictoryRoutine(e));
-            Rumble.Play(0.8f, 0.8f, 0.7f);
+            ShowBanner("STAGE CLEAR", 1.05f);
+            StartCoroutine(VictoryRoutine());
         }
     }
 
-    IEnumerator VictoryRoutine(Enemy boss)
+    IEnumerator VictoryRoutine()
     {
+        // Let the last attack finish tallying its hits before recording the result.
+        yield return null;
+        run.Finish(true);
         var player = FindFirstObjectByType<PlayerCombat>();
         if (player == null) { ResultVisible = true; yield break; }
         player.EndCombat();
         var camera = Camera.main;
         var follow = camera != null ? camera.GetComponent<CameraFollow>() : null;
-        if (follow != null) follow.HoldBossDefeat();
-        while (boss != null) yield return null;
-        yield return WaitPresentation(bossDefeatPause);
+        yield return WaitPresentation(.85f);
         player.CelebrateVictory();
         if (follow != null) follow.BeginVictory(player.transform);
         yield return WaitPresentation(victoryDuration);
@@ -109,8 +98,7 @@ public class GameManager : MonoBehaviour
         run.Finish(false);
         var player = FindFirstObjectByType<PlayerCombat>();
         if (player != null) player.EndCombat();
-        foreach (var spawner in FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None)) spawner.enabled = false;
-        ShowBanner("GAME OVER", 999f);
+        ResultVisible = true;
     }
 
     IEnumerator WaitPresentation(float duration)
@@ -128,6 +116,13 @@ public class GameManager : MonoBehaviour
         run.RestartRun();
     }
 
+    public void ReturnToTitle()
+    {
+        if (SettingsMenu.BlocksGameplay) return;
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("TitleScene");
+    }
+
     void OnDestroy()
     {
         if (Instance == this) Instance = null;
@@ -136,7 +131,7 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         if (SettingsMenu.BlocksGameplay) return;
-        if(State==GameState.Playing && !RunManager.RewardOpen)runSeconds+=Time.deltaTime;
+        if (State == GameState.Playing) runSeconds += Time.deltaTime;
         if (State == GameState.Playing) return;
         if (State == GameState.Cleared && !ResultVisible) return;
         bool key = Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame;

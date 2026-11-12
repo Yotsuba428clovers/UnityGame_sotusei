@@ -4,7 +4,7 @@ using UnityEngine;
 // A dedicated key keeps existing settings untouched. Only records persist.
 public static class SaveManager
 {
-    const string Key = "Prototype.Roguelite.Records.v1";
+    const string Key = "Prototype.Musou.Stage01.Records.v1";
     [Serializable]
     public sealed class Records
     {

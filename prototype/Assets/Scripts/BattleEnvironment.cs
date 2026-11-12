@@ -33,14 +33,20 @@ public class BattleEnvironment : MonoBehaviour
         Light light=null;
         foreach(var candidate in FindObjectsByType<Light>(FindObjectsSortMode.None))if(candidate.type==LightType.Directional){light=candidate;break;}
         if(light!=null){light.color=new Color(1,.95f,.82f);light.intensity=1.15f;light.transform.rotation=Quaternion.Euler(48,-35,0);light.shadows=LightShadows.Soft;RenderSettings.sun=light;}
-        var skyAsset=Resources.Load<Material>("Environment/DaylightSky");
+        // A scene-authored HDR panorama takes precedence over the prototype sky.
+        var skyAsset=oldSky!=null && oldSky.shader.name=="Skybox/Panoramic"
+            ?oldSky:Resources.Load<Material>("Environment/DaylightSky");
+        if(skyAsset==oldSky && oldSky!=null)RenderSettings.fogDensity=.0047f;
         if(skyAsset!=null)
         {
             sky=new Material(skyAsset);
-            if(light!=null)sky.SetVector("_SunDirection",-light.transform.forward);
+            if(light!=null&&sky.HasProperty("_SunDirection"))sky.SetVector("_SunDirection",-light.transform.forward);
             RenderSettings.skybox=sky;
         }
-        for(int i=0;i<16;i++)
+        // Keep the prototype pillars only in scenes without authored scenery.
+        bool hasScenery=System.Array.Exists(gameObject.scene.GetRootGameObjects(),
+            root=>root.name=="Battle Scenery" && root.activeInHierarchy && root.transform.childCount>0);
+        for(int i=0;!hasScenery && i<16;i++)
         {
             float a=i*Mathf.PI*2/16;var pos=new Vector3(Mathf.Cos(a)*32,0,Mathf.Sin(a)*32);
             float h=4+(i%3)*1.4f;

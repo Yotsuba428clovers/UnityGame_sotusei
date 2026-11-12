@@ -39,8 +39,7 @@ public static class BattlePolishSetup
         foreach(var root in scene.GetRootGameObjects())
         {
             var setup=root.GetComponentInChildren<QuickSetup>(true);if(setup==null)continue;
-            setup.enhanceBattlePresentation=true;setup.startingEnemies=6;setup.maxAliveEnemies=18;
-            setup.additionalEnemyPrefabs=new[]{AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Stone_Raider.prefab")};
+            setup.enhanceBattlePresentation=true;
             if(setup.elementFx==null||setup.elementFx.Length<4)setup.elementFx=new ElementFx[4];
             string[] colors={"Red","Blue","Yellow","Green"};
             for(int i=0;i<4;i++)
@@ -57,6 +56,6 @@ public static class BattlePolishSetup
         EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);
         if(opened)EditorSceneManager.CloseScene(scene,true);
         AssetDatabase.SaveAssets();
-        return "Battle polish saved: mixed enemies, attack warnings, VFX, arena, sound and special presentation.";
+        return "Battle polish saved: attack warnings, VFX, arena, sound and special presentation.";
     }
 }

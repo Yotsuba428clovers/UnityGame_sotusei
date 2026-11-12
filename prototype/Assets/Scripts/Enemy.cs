@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 雑魚・ボス共通。固有属性・弱点・耐性は持たず、攻撃属性による状態異常だけを受ける。
-// 炎:継続ダメージ 氷:鈍足 雷:スタン 風:大きく吹き飛ばし
+// 炎:吹き飛ばし 氷:鈍足 雷:スタン 風:引き寄せ
 // 氷の必殺技: 凍結(動けず攻撃不可・ノックバックなし)
 public class Enemy : MonoBehaviour
 {
@@ -65,7 +65,7 @@ public class Enemy : MonoBehaviour
         if(BreakRemaining<=0)
         {
             BreakRemaining=100;breakUntil=Time.time+3f;stunUntil=Mathf.Max(stunUntil,breakUntil);
-            attackToken++;ClearWarning();knockVel=Vector3.zero;
+            CancelAttack();knockVel=Vector3.zero;
             GameManager.Instance?.ShowBanner("BREAK!",2);
         }
     }
@@ -73,10 +73,11 @@ public class Enemy : MonoBehaviour
 
     PlayerCombat player;
     Vector3 knockVel;
-    float nextAttack, stunUntil, slowUntil, burnUntil, nextBurnTick, flashUntil, frozenUntil;
+    float airTime, airHeight, airOffset;
+    float impactPauseUntil;
+    float nextAttack, stunUntil, slowUntil, burnUntil, flashUntil, frozenUntil;
     float shockUntil, windUntil, breakUntil;
-    bool attacking;
-    int attackToken;
+    Coroutine attack;
     Vector3 lastHitDir;   // 最後に受けた攻撃の方向
     Collider[] cols;
     Animator anim;
@@ -84,8 +85,14 @@ public class Enemy : MonoBehaviour
     CombatPulse activeWarning;
 
     void OnEnable() { All.Add(this); }
-    void OnDisable() { All.Remove(this); if (Boss == this) Boss = null; ClearWarning(); }
+    void OnDisable() { All.Remove(this); if (Boss == this) Boss = null; CancelAttack(); }
     void ClearWarning(){if(activeWarning!=null)Destroy(activeWarning.gameObject);activeWarning=null;}
+    void CancelAttack()
+    {
+        if (attack != null) StopCoroutine(attack);
+        attack = null;
+        ClearWarning();
+    }
 
     // Colliderが無いPrefabでも攻撃が当たるように、見た目の大きさに合わせて自動で付ける
     void EnsureCollider()
@@ -118,17 +125,14 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
-        if (SettingsMenu.BlocksGameplay || RunManager.RewardOpen || (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Playing)) return;
+        if (SettingsMenu.BlocksGameplay || (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Playing)) return;
         if (IsDead) return;
 
-        // 炎の継続ダメージ
-        if (Time.time < burnUntil && Time.time >= nextBurnTick)
+        if (Time.unscaledTime < impactPauseUntil)
         {
-            nextBurnTick = Time.time + 0.5f;
-            ApplyDamage(isBoss ? 6f : 4f, false);
-            if (IsDead) return;
+            if (anim != null) anim.speed = 0f;
+            return;
         }
-
         if (anim != null) anim.speed = IsFrozen || IsBroken ? 0f : (IsChilled ? 0.55f : 1f);
         if (player == null || player.IsDead)
         {
@@ -140,13 +144,13 @@ public class Enemy : MonoBehaviour
         to.y = 0f;
         float dist = to.magnitude;
         Vector3 dir = dist > 0.01f ? to / dist : transform.forward;
-        bool stunned = Time.time < stunUntil;
+        bool stunned = Time.time < stunUntil || airTime > 0f;
 
-        Vector3 move = knockVel + Separation();
+        Vector3 move = IsFrozen ? Vector3.zero : knockVel + Separation();
         knockVel = Vector3.MoveTowards(knockVel, Vector3.zero, 25f * Time.deltaTime);
 
         float walkSpeed = 0f;
-        if (!stunned && !attacking)
+        if (!stunned && attack == null)
         {
             float speed = moveSpeed * (Time.time < slowUntil ? 0.45f : 1f);
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 10f * Time.deltaTime);
@@ -155,11 +159,29 @@ public class Enemy : MonoBehaviour
                 move += dir * speed;
                 walkSpeed = speed;
             }
-            if (dist <= attackRange && Time.time >= nextAttack) StartCoroutine(AttackRoutine());
+            if (dist <= attackRange && Time.time >= nextAttack &&
+                ArenaGeometry.ClearPath(transform.position, player.transform.position)) attack = StartCoroutine(AttackRoutine());
         }
         if (hasSpeedParam) anim.SetFloat("Speed", walkSpeed, 0.1f, Time.deltaTime);
         DebugAnim(walkSpeed);
-        transform.position += move * Time.deltaTime;
+        Vector3 position = transform.position;
+        Vector3 step = move * Time.deltaTime;
+        if (step.sqrMagnitude > .000001f)
+        {
+            float distance = step.magnitude;
+            Vector3 heading = step / distance;
+            position += heading * ArenaGeometry.ClearDistance(position + Vector3.up * (.75f - airOffset),
+                heading, distance, Mathf.Min(.45f, Radius));
+        }
+        if (airTime > 0f && !IsFrozen)
+        {
+            airTime = Mathf.Max(0f, airTime - Time.deltaTime);
+            float progress = 1f - airTime / .45f;
+            position.y -= airOffset;
+            airOffset = 4f * airHeight * progress * (1f - progress);
+            position.y += airOffset;
+        }
+        transform.position = position;
     }
     float nextDebug;
 
@@ -195,8 +217,6 @@ public class Enemy : MonoBehaviour
 
     IEnumerator AttackRoutine()
     {
-        attacking = true;
-        int token = attackToken;
         Vector3 impactPosition=transform.position;
         nextAttack = Time.time + attackCooldown + Random.Range(0f, 0.5f);
         AnimHelper.Trigger(anim, "Attack");
@@ -206,7 +226,7 @@ public class Enemy : MonoBehaviour
                 new Color(1,.32f,.13f),attackStyle==AttackStyle.GroundSlam?slamRadius:attackRange*.65f,attackWindup,true);
         yield return new WaitForSeconds(attackWindup);   // 攻撃モーションの「当たる瞬間」まで
         ClearWarning();
-        if (!IsDead && token == attackToken && player != null)
+        if (!IsDead && player != null)
         {
             if (attackFx != null)
             {
@@ -221,10 +241,11 @@ public class Enemy : MonoBehaviour
                 CameraFollow.Shake(.16f,.22f);
             Vector3 d = player.transform.position - (slam?impactPosition:transform.position);
             d.y = 0f;
-            if (d.magnitude <= (slam?slamRadius:attackRange+0.6f)) player.TakeDamage(attackDamage);
+            if (d.magnitude <= (slam?slamRadius:attackRange+0.6f) &&
+                ArenaGeometry.ClearPath(transform.position, player.transform.position)) player.TakeDamage(attackDamage);
         }
         yield return new WaitForSeconds(attackRecovery);   // モーションの残りが終わるまで動かない
-        attacking = false;
+        attack = null;
     }
 
     // 凍結: 動けず、攻撃もできない(ボスは凍結時間が短い)
@@ -233,10 +254,39 @@ public class Enemy : MonoBehaviour
         if (IsDead) return;
         frozenUntil = Time.time + (isBoss ? duration * 0.3f : duration);
         stunUntil = Mathf.Max(stunUntil, frozenUntil);
-        attackToken++;            // 攻撃の溜めをキャンセル
-        ClearWarning();
+        CancelAttack();
         knockVel = Vector3.zero;
         windUntil=0;
+    }
+
+    public void Interrupt(float duration)
+    {
+        if (IsDead) return;
+        stunUntil = Mathf.Max(stunUntil, Time.time + duration);
+        CancelAttack();
+    }
+
+    public void PauseOnHit(float until)
+    {
+        if (!IsDead) impactPauseUntil = Mathf.Max(impactPauseUntil, until);
+    }
+
+    public void Launch(float height)
+    {
+        if (IsDead || IsFrozen || isBoss || airTime > 0f) return;
+        airTime = .45f;
+        airHeight = height;
+        Interrupt(airTime);
+    }
+
+    public void PullToward(Vector3 destination, float maxDistance)
+    {
+        if (IsDead || IsFrozen) return;
+        Vector3 offset = Vector3.ProjectOnPlane(destination - transform.position, Vector3.up);
+        float distance = Mathf.Min(offset.magnitude, maxDistance);
+        float speed = Mathf.Sqrt(2f * 25f * distance);
+        knockVel = offset.normalized * speed;
+        Interrupt(speed / 25f);
     }
 
     // プレイヤーの回避中に、当たり判定を無視する
@@ -248,7 +298,7 @@ public class Enemy : MonoBehaviour
     }
 
     // 戻り値 = 生存中の敵が命中を受け付けたか。属性による弱点倍率はない。
-    public bool TakeHit(float damage, Element element, Vector3 knockback)
+    public bool TakeHit(float damage, Element? element, Vector3 knockback)
     {
         if (IsDead) return false;
 
@@ -262,42 +312,37 @@ public class Enemy : MonoBehaviour
         float dist = knockback.magnitude * bossResist;
         if (Time.time < frozenUntil) dist = 0f;   // 凍結中は吹っ飛ばない
         flashUntil = Time.time + 0.06f;
-        LastAppliedElement=element;
+        if (element.HasValue) LastAppliedElement = element.Value;
 
         switch (element)
         {
             case Element.Fire:
-                burnUntil = Time.time + 3f;
+                burnUntil = Time.time + .65f;
                 break;
             case Element.Ice:
                 slowUntil = Time.time + 3f;
                 break;
             case Element.Lightning:
                 shockUntil=Time.time+(isBoss?.2f:.6f);
-                stunUntil = Mathf.Max(stunUntil, shockUntil);
-                attackToken++;
-                ClearWarning();
+                Interrupt(shockUntil - Time.time);
                 break;
             case Element.Wind:
                 dist *= 1.8f;
                 windUntil=Time.time+Mathf.Max(isBoss?.1f:.25f,Mathf.Sqrt(2f*25f*dist)/25f);
-                stunUntil = Mathf.Max(stunUntil, Time.time + (isBoss ? 0.1f : 0.25f));
-                attackToken++;
-                ClearWarning();
+                Interrupt(isBoss ? .1f : .25f);
                 break;
         }
         if (dist > 0.01f) knockVel = knockback.normalized * Mathf.Sqrt(2f * 25f * dist);
 
-        ApplyDamage(damage, true);
+        ApplyDamage(damage);
         return true;
     }
 
-    void ApplyDamage(float dmg, bool popup)
+    void ApplyDamage(float dmg)
     {
         Hp -= dmg;
-        if (popup)
-            DamagePopup.Spawn(transform.position + Vector3.up * (2.2f * transform.localScale.y), dmg,
-                              Color.white, false);
+        DamagePopup.Spawn(transform.position + Vector3.up * (2.2f * transform.localScale.y), dmg,
+                          Color.white, false);
         if (Hp <= 0f) Die();
     }
 
@@ -305,14 +350,11 @@ public class Enemy : MonoBehaviour
     {
         if (IsDead) return;
         IsDead = true;
-        StopAllCoroutines();
-        attacking = false;
-        ClearWarning();
+        CancelAttack();
         All.Remove(this);
         if (Boss == this) Boss = null;
         foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;
-        if (player != null)
-            player.GetComponent<PlayerBuild>()?.EnemyKilled(this);
+        CoinDrop.Spawn(transform.position - Vector3.up * airOffset, player);
         if (player != null)
             Fx.Play(player.enemyDeathFx, transform.position + Vector3.up * transform.localScale.y,
                     Quaternion.identity, player.fxScale * transform.localScale.x);

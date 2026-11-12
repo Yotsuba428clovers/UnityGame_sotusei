@@ -42,7 +42,8 @@ public static class UiLanguage
         {"MOUSE / KEYBOARD / CONTROLLER", "マウス / キーボード / コントローラー対応"},
         {"MASTER THE ELEMENTS", "操作方法"}, {"PREPARING THE ARENA…", "戦闘の準備中…"},
         {"FLAME BURST!", "煉獄斬！"}, {"FROZEN WORLD!", "絶氷領域！"},
-        {"THUNDER DASH MODE!", "雷撃強化！"}, {"WIND RUSH MODE!", "疾風覚醒！"},
+        {"DEFEAT 20 ENEMIES", "敵を20体撃破せよ"},
+        {"PLAY AGAIN  /  R", "再挑戦  /  R"}, {"BACK TO TITLE", "タイトルへ戻る"},
         {"SCENE UNAVAILABLE — CHECK BUILD SETTINGS", "シーンが未登録です。ビルド設定を確認してください。"},
         {"MOVE       WASD / Left stick\nCAMERA   Arrow keys / Right stick\nATTACK    J / X     ·     HEAVY    K / Y\nDODGE      Space / A     ·     SPECIAL   L / B\nELEMENT  Q, E / LB, RB\n\nChain attacks. Switch elements. Defeat the boss.",
          "移動：WASD / 左スティック\n視点：矢印キー / 右スティック\n通常攻撃：J / □　強攻撃：K / △\n回避：Space / ×　必殺技：L / ○\n属性切替：Q・E / L1・R1\n設定：Esc / OPTIONS\n報酬選択：← → / 十字キー、Enter / ×で決定\n再挑戦：リザルトのボタン / R\n\n連続攻撃と属性を使い分け、ボスを倒そう。"},
@@ -96,7 +97,7 @@ public static class UiLanguage
     };
     public static string UpgradeName(UpgradeData data) => English ? UpgradeNames[(int)data.effect] : data.title;
     public static string UpgradeDescription(UpgradeData data) => English ? UpgradeDescriptions[(int)data.effect] : data.description;
-    public const string JapaneseControls = "移動：WASD / 左スティック\n視点：マウス / 右スティック\n通常攻撃：F / □　強攻撃：G / △\n回避：Space / ×　ULT：Z / ○\n属性切替：Q・E / L1・R1\n設定：Esc / OPTIONS（カーソル解除）\n報酬選択：← → / 十字キー、Enter / ×で決定\n再挑戦：リザルトのボタン / R\n\n連続攻撃と属性を使い分け、ボスを倒そう。";
-    public const string EnglishControls = "Move: WASD / Left stick\nCamera: Mouse / Right stick\nAttack: F / Square   Heavy: G / Triangle\nDodge: Space / Cross   ULT: Z / Circle\nElement: Q, E / L1, R1\nSettings: Esc / OPTIONS (release cursor)\nRewards: Arrows / D-pad, Enter / Cross to confirm\nPlay again: Result button / R\n\nChain attacks, switch elements and defeat the boss.";
+    public const string JapaneseControls = "移動：WASD / 左スティック　視点：マウス / 右スティック\n弱攻撃：左クリック / □　強攻撃：右クリック / △\n回避：Space / ×　必殺技：F / R1\n属性：炎・風・氷・雷 → 1・2・3・4 / 十字キー ↑ → ↓ ←\n設定：Esc / OPTIONS　再挑戦：R\n\n弱は3連撃。弱2段目から強攻撃で属性技へ派生。\nゲージ100で必殺技。敵を20体倒すとクリア。";
+    public const string EnglishControls = "Move: WASD / Left stick   Look: Mouse / Right stick\nLight: Left click / Square   Strong: Right click / Triangle\nDodge: Space / Cross   Special: F / R1\nFire, Wind, Ice, Thunder: 1, 2, 3, 4 / D-pad ↑ → ↓ ←\nSettings: Esc / OPTIONS   Retry: R\n\nChain three light attacks or branch from light 2 into strong.\nUse a special at 100 charge. Defeat 20 enemies to clear.";
 }
 

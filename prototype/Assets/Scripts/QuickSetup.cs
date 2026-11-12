@@ -2,22 +2,19 @@ using UnityEngine;
 
 // 空のシーンの空オブジェクトにこれを付けて再生するだけで、
 // 地面・プレイヤー・カメラ・敵スポナー・HUDを自動生成する。
-// 自作モデルを使う場合は playerModelPrefab / enemyPrefab / bossPrefab を割り当てる。
+// 自作モデルを使う場合は playerModelPrefab / enemyPrefab を割り当てる。
 public class QuickSetup : MonoBehaviour
 {
     public GameObject playerModelPrefab;
     public GameObject enemyPrefab;
-    public GameObject bossPrefab;
-    public GameObject[] additionalEnemyPrefabs;
     public bool enhanceBattlePresentation=true;
-    public bool firstPersonView = true;
-    public int startingEnemies=6;
-    public int maxAliveEnemies=18;
+    public bool firstPersonView;
+    [Range(-10f,55f)] public float thirdPersonStartPitch = 18f;
+    [Min(1f)] public float thirdPersonDistance = 7.5f;
     [Header("戦闘サウンド（未設定なら合成音）")]
     public AudioClip swingSound, hitSound, warningSound, slamSound, specialSound;
     [Range(0,1)] public float combatSoundVolume=.35f;
     public bool createPlaceholderSword = true;
-    public int killsToBoss = 50;
     [Header("背景")]
     public Material groundMaterial;
     [Min(.5f)] public float groundTileWorldSize = 8f;
@@ -114,6 +111,7 @@ public class QuickSetup : MonoBehaviour
         }
         var follow = cam.gameObject.AddComponent<CameraFollow>();
         follow.firstPerson = firstPersonView;
+        follow.SetInitialThirdPersonView(thirdPersonStartPitch,thirdPersonDistance);
         follow.target = player.transform;
         controller.cameraTransform = cam.transform;
 
@@ -124,17 +122,10 @@ public class QuickSetup : MonoBehaviour
         presentation.warningSound=warningSound;presentation.slamSound=slamSound;
         presentation.specialSound=specialSound;presentation.soundVolume=combatSoundVolume;
         if(enhanceBattlePresentation)sys.AddComponent<BattleEnvironment>();
-        var gm = sys.AddComponent<GameManager>();
-        gm.killsToBoss = killsToBoss;
+        sys.AddComponent<GameManager>();
         var spawner = sys.AddComponent<EnemySpawner>();
         spawner.player = player.transform;
         spawner.enemyPrefab = enemyPrefab;
-        spawner.bossPrefab = bossPrefab;
-        spawner.additionalEnemyPrefabs=additionalEnemyPrefabs;
-        spawner.startingEnemies=startingEnemies;
-        spawner.maxAlive=maxAliveEnemies;
-        spawner.spawnInterval=1.2f;
-        spawner.batchSize=2;
         var hud = sys.AddComponent<HUD>();
         sys.AddComponent<SettingsMenu>();
         hud.font = hudFont;

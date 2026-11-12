@@ -1,5 +1,11 @@
 # 完全リセット型ローグライト：実装内容
 
+## 天空の闘技場
+
+戦闘シーンの `Battle Scenery` に `dai - Central arena` を配置し、中央の紋章を戦闘床として見せている。左右の遺跡と低い石壁は遠景への視線を遮らないよう開口部を残し、奥には浮遊城と小島を配置した。背景の造形は装飾のみで、中央の移動や敵の出現範囲には干渉しない。
+
+空は `Assets/materials/BattleScenery/Sky Terrace HDRI.exr` を使う360度のパノラマ。太陽部分に1を超える輝度を持つ2048×1024のHDRデータで、`Skybox/Panoramic` マテリアルから参照する。戦闘シーンに指定されたパノラマを優先し、他のシーンでは従来の空を使う。戦闘シーンの三人称カメラの初期角度と距離はQuickSetupから調整でき、保存済みの一人称／三人称の選択は引き継ぐ。
+
 ## 地面と空
 
 地面はAssets/materials/textures/flat_tex.pngを使用。300m四方のPlaneに37.5回ずつ繰り返し、約8mを1タイルとしている。QuickSetupのgroundTileWorldSizeで大きさ、groundMaterialでマテリアルを差し替えられる。
