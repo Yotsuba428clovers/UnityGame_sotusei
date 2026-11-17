@@ -8,15 +8,15 @@ public static class BattlePolishSetup
     static GameObject Load(string path){return AssetDatabase.LoadAssetAtPath<GameObject>(Vfx+path+".prefab");}
     public static string Apply()
     {
-        var stone=PrefabUtility.LoadPrefabContents("Assets/Prefabs/Stone_Prefab.prefab");
+        var stone=PrefabUtility.LoadPrefabContents("Assets/Resources/Stone_Prefab.prefab");
         try
         {
             var e=stone.GetComponent<Enemy>();e.attackStyle=Enemy.AttackStyle.GroundSlam;
             e.showAttackWarning=true;e.slamRadius=6;e.attackRange=5;e.moveSpeed=1.8f;e.attackDamage=32;e.maxHp=1800;
-            PrefabUtility.SaveAsPrefabAsset(stone,"Assets/Prefabs/Stone_Prefab.prefab");
+            PrefabUtility.SaveAsPrefabAsset(stone,"Assets/Resources/Stone_Prefab.prefab");
         }
         finally{PrefabUtility.UnloadPrefabContents(stone);}
-        var baseStone=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Stone_Prefab.prefab");
+        var baseStone=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Stone_Prefab.prefab");
         var raider=(GameObject)PrefabUtility.InstantiatePrefab(baseStone);
         try
         {
@@ -48,7 +48,7 @@ public static class BattlePolishSetup
                 var f=setup.elementFx[i];string color=colors[i];
                 if(f.slash==null)f.slash=Load("Slash/SwordSlashThin/SwordSlashThin"+color);
                 if(f.heavy==null)f.heavy=Load("Slash/SwordSlashThick/SwordSlashThick"+(i==2?"White":color));
-                if(f.hit==null)f.hit=Load("Hit/SwordHitMini/SwordHitMini"+color);
+                if(f.hit==null)f.hit=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/SwordHitMini"+color+".prefab");
                 if(f.special==null)f.special=Load("Whirlwind/SwordWhirlwind"+(i==2?"White":color));
             }
             EditorUtility.SetDirty(setup);

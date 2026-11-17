@@ -53,7 +53,7 @@ public static class StoneAttackSetup
         var startAttack=machine.AddAnyStateTransition(attacking);startAttack.hasExitTime=false;startAttack.duration=.1f;startAttack.canTransitionToSelf=false;startAttack.AddCondition(AnimatorConditionMode.If,0,"Attack");
         var finishAttack=attacking.AddTransition(idle);finishAttack.hasExitTime=true;finishAttack.exitTime=1;finishAttack.duration=.1f;
         machine.defaultState=idle;EditorUtility.SetDirty(controller);
-        const string prefabPath="Assets/Prefabs/Stone_Prefab.prefab";
+        const string prefabPath="Assets/Resources/Stone_Prefab.prefab";
         var root=PrefabUtility.LoadPrefabContents(prefabPath);
         try
         {

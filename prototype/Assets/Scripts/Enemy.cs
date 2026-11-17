@@ -73,6 +73,7 @@ public class Enemy : MonoBehaviour
 
     PlayerCombat player;
     Vector3 knockVel;
+    static int effectFrame = -1, damagePopups, deathEffects;
     float airTime, airHeight, airOffset;
     float impactPauseUntil;
     float nextAttack, stunUntil, slowUntil, burnUntil, flashUntil, frozenUntil;
@@ -114,6 +115,7 @@ public class Enemy : MonoBehaviour
     {
         Hp = maxHp;
         EnsureCollider();
+        cols = GetComponentsInChildren<Collider>();
         if (isBoss) Boss = this;
         player = FindFirstObjectByType<PlayerCombat>();
         anim = GetComponentInChildren<Animator>();
@@ -163,7 +165,6 @@ public class Enemy : MonoBehaviour
                 ArenaGeometry.ClearPath(transform.position, player.transform.position)) attack = StartCoroutine(AttackRoutine());
         }
         if (hasSpeedParam) anim.SetFloat("Speed", walkSpeed, 0.1f, Time.deltaTime);
-        DebugAnim(walkSpeed);
         Vector3 position = transform.position;
         Vector3 step = move * Time.deltaTime;
         if (step.sqrMagnitude > .000001f)
@@ -183,34 +184,23 @@ public class Enemy : MonoBehaviour
         }
         transform.position = position;
     }
-    float nextDebug;
-
-    // 診断用: 先頭の敵だけ、1秒ごとにアニメの状態を出力
-    void DebugAnim(float walkSpeed)
-    {
-        if (anim == null || anim.runtimeAnimatorController == null || All.Count == 0 || All[0] != this || Time.time < nextDebug) return;
-        nextDebug = Time.time + 1f;
-        var st = anim.GetCurrentAnimatorStateInfo(0);
-        var clips = anim.GetCurrentAnimatorClipInfo(0);
-        Debug.Log("[EnemyAnim] clip=" + (clips.Length > 0 ? clips[0].clip.name : "none")
-            + "  inTransition=" + anim.IsInTransition(0)
-            + "  layers=" + anim.layerCount
-            + "  SpeedParam=" + (hasSpeedParam ? anim.GetFloat("Speed").ToString("0.00") : "-")
-            + "  normalizedTime=" + st.normalizedTime.ToString("0.00"), this);
-    }
     // 敵同士が重なりすぎないように
     Vector3 Separation()
     {
         Vector3 push = Vector3.zero;
+        Vector3 position = transform.position;
+        float radius = Radius;
         for (int i = 0; i < All.Count; i++)
         {
             Enemy o = All[i];
             if (o == this) continue;
-            Vector3 d = transform.position - o.transform.position;
+            Vector3 d = position - o.transform.position;
             d.y = 0f;
-            float min = Radius + o.Radius;
-            float m = d.magnitude;
-            if (m < min && m > 0.001f) push += d / m * (min - m);
+            float min = radius + o.Radius;
+            float squared = d.sqrMagnitude;
+            if (squared >= min * min || squared <= .000001f) continue;
+            float distance = Mathf.Sqrt(squared);
+            push += d * ((min - distance) / distance);
         }
         return push * 4f;
     }
@@ -281,12 +271,35 @@ public class Enemy : MonoBehaviour
 
     public void PullToward(Vector3 destination, float maxDistance)
     {
-        if (IsDead || IsFrozen) return;
+        if (IsDead || IsFrozen || isBoss) return;
         Vector3 offset = Vector3.ProjectOnPlane(destination - transform.position, Vector3.up);
         float distance = Mathf.Min(offset.magnitude, maxDistance);
         float speed = Mathf.Sqrt(2f * 25f * distance);
         knockVel = offset.normalized * speed;
         Interrupt(speed / 25f);
+    }
+
+    // A large enemy can be in sword range even when its root is several metres away.
+    public Vector3 AttackTargetFrom(Vector3 origin)
+    {
+        if (!isBoss || cols == null) return transform.position;
+
+        Vector3 nearest = transform.position;
+        float bestDistance = float.PositiveInfinity;
+        foreach (var body in cols)
+        {
+            if (body == null || !body.enabled || body.isTrigger || !body.gameObject.activeInHierarchy)
+                continue;
+            Bounds bounds = body.bounds;
+            var sample = new Vector3(origin.x, bounds.center.y, origin.z);
+            Vector3 surface = body.ClosestPoint(sample);
+            surface.y = transform.position.y;
+            float distance = (surface - origin).sqrMagnitude;
+            if (distance >= bestDistance) continue;
+            nearest = surface;
+            bestDistance = distance;
+        }
+        return nearest;
     }
 
     // プレイヤーの回避中に、当たり判定を無視する
@@ -324,12 +337,12 @@ public class Enemy : MonoBehaviour
                 break;
             case Element.Lightning:
                 shockUntil=Time.time+(isBoss?.2f:.6f);
-                Interrupt(shockUntil - Time.time);
+                if (!isBoss) Interrupt(shockUntil - Time.time);
                 break;
             case Element.Wind:
                 dist *= 1.8f;
                 windUntil=Time.time+Mathf.Max(isBoss?.1f:.25f,Mathf.Sqrt(2f*25f*dist)/25f);
-                Interrupt(isBoss ? .1f : .25f);
+                if (!isBoss) Interrupt(.25f);
                 break;
         }
         if (dist > 0.01f) knockVel = knockback.normalized * Mathf.Sqrt(2f * 25f * dist);
@@ -338,10 +351,18 @@ public class Enemy : MonoBehaviour
         return true;
     }
 
+    static void RefreshEffectBudget()
+    {
+        if (effectFrame == Time.frameCount) return;
+        effectFrame = Time.frameCount;
+        damagePopups = deathEffects = 0;
+    }
+
     void ApplyDamage(float dmg)
     {
         Hp -= dmg;
-        DamagePopup.Spawn(transform.position + Vector3.up * (2.2f * transform.localScale.y), dmg,
+        RefreshEffectBudget();
+        if (damagePopups++ < 12) DamagePopup.Spawn(transform.position + Vector3.up * (2.2f * transform.localScale.y), dmg,
                           Color.white, false);
         if (Hp <= 0f) Die();
     }
@@ -355,7 +376,7 @@ public class Enemy : MonoBehaviour
         if (Boss == this) Boss = null;
         foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;
         CoinDrop.Spawn(transform.position - Vector3.up * airOffset, player);
-        if (player != null)
+        if (player != null && deathEffects++ < 10)
             Fx.Play(player.enemyDeathFx, transform.position + Vector3.up * transform.localScale.y,
                     Quaternion.identity, player.fxScale * transform.localScale.x);
         if (GameManager.Instance != null) GameManager.Instance.OnEnemyKilled(this);

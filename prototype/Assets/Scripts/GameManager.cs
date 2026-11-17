@@ -10,7 +10,7 @@ public class GameManager : MonoBehaviour
 
     public static GameManager Instance { get; private set; }
 
-    public const int KillGoal = 20;
+    public const int KillGoal = 100;
     public float victoryDuration = 1.25f;
     public float resultSlideDuration = .55f;
     public bool ResultVisible { get; private set; }
@@ -53,17 +53,21 @@ public class GameManager : MonoBehaviour
     public void OnEnemyKilled(Enemy e)
     {
         if (State != GameState.Playing) return;
-        Kills++;
+        if (!e.isBoss)
+        {
+            Kills++;
+            return;
+        }
         if (Kills >= KillGoal)
         {
             State = GameState.Cleared;
             ClearTime = runSeconds;
             ShowBanner("STAGE CLEAR", 1.05f);
-            StartCoroutine(VictoryRoutine());
+            StartCoroutine(VictoryRoutine(e));
         }
     }
 
-    IEnumerator VictoryRoutine()
+    IEnumerator VictoryRoutine(Enemy boss)
     {
         // Let the last attack finish tallying its hits before recording the result.
         yield return null;
@@ -73,7 +77,7 @@ public class GameManager : MonoBehaviour
         player.EndCombat();
         var camera = Camera.main;
         var follow = camera != null ? camera.GetComponent<CameraFollow>() : null;
-        yield return WaitPresentation(.85f);
+        while (boss != null) yield return null;
         player.CelebrateVictory();
         if (follow != null) follow.BeginVictory(player.transform);
         yield return WaitPresentation(victoryDuration);

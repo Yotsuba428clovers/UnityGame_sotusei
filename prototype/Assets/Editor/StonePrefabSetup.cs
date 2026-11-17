@@ -78,7 +78,7 @@ public static class StonePrefabSetup
         machine.defaultState = state;
         EditorUtility.SetDirty(controller);
 
-        const string prefabPath = "Assets/Prefabs/Stone_Prefab.prefab";
+        const string prefabPath = "Assets/Resources/Stone_Prefab.prefab";
         var root = PrefabUtility.LoadPrefabContents(prefabPath);
         try
         {

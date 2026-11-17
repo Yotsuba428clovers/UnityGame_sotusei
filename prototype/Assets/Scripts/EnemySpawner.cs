@@ -1,39 +1,106 @@
 using UnityEngine;
 
-// One stage with three fixed formations: a cluster, a line and a spread.
+// Spawns the next group after the current one is defeated.
 public class EnemySpawner : MonoBehaviour
 {
+    public const int WaveCount = 4;
+    public const int EnemiesPerWave = GameManager.KillGoal / WaveCount;
     public Transform player;
     public GameObject enemyPrefab;
+    public GameObject bossPrefab;
+    public int Wave { get; private set; }
 
-    static readonly Vector2[] Formation =
-    {
-        new Vector2(-1.5f, 6f), new Vector2(0f, 6f), new Vector2(1.5f, 6f),
-        new Vector2(-1.5f, 7.6f), new Vector2(0f, 7.6f), new Vector2(1.5f, 7.6f),
-        new Vector2(-0.75f, 9.2f), new Vector2(0.75f, 9.2f),
-        new Vector2(-8f, 12f), new Vector2(-5.3f, 12f), new Vector2(-2.6f, 12f),
-        new Vector2(0f, 12f), new Vector2(2.6f, 12f), new Vector2(5.3f, 12f), new Vector2(8f, 12f),
-        new Vector2(-8f, 4f), new Vector2(-6f, 8f), new Vector2(7f, 5f),
-        new Vector2(6f, 9f), new Vector2(0f, 16f)
-    };
+    const int Columns = 5;
+    Vector3 stageOrigin;
+    Quaternion stageRotation;
+    float ordinaryHeight;
+    float nextWaveAt = -1f;
+    bool bossReleased;
 
     void Start()
     {
         if (player == null) return;
-        foreach (Vector2 slot in Formation)
-        {
-            Vector3 offset = new Vector3(slot.x, 0f, slot.y);
-            Vector3 position = player.position + player.rotation * offset;
-            if (Physics.Raycast(position + Vector3.up * 3f, Vector3.down, out var floor, 6f,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
-                position.y = floor.point.y;
+        stageOrigin = player.position;
+        stageRotation = Quaternion.Euler(0f, player.eulerAngles.y, 0f);
+        ordinaryHeight = BodyHeight(player, 1.65f);
+        SpawnWave();
+    }
 
-            Quaternion facing = Quaternion.LookRotation(-(player.rotation * offset));
-            GameObject actor = enemyPrefab != null ? Instantiate(enemyPrefab, position, facing) : CreateDefault(position);
-            if (!actor.TryGetComponent(out Enemy enemy)) enemy = actor.AddComponent<Enemy>();
-            enemy.isBoss = false;
+    void Update()
+    {
+        var game = GameManager.Instance;
+        if (player == null || game == null || game.State != GameManager.GameState.Playing ||
+            bossReleased || SettingsMenu.BlocksGameplay || game.Kills < Wave * EnemiesPerWave) return;
+
+        if (nextWaveAt < 0f) nextWaveAt = Time.time + .55f;
+        if (Time.time < nextWaveAt) return;
+        nextWaveAt = -1f;
+        if (Wave < WaveCount) SpawnWave();
+        else SpawnBoss();
+    }
+
+    void SpawnWave()
+    {
+        Wave++;
+        GameManager.Instance?.ShowBanner($"WAVE {Wave} / {WaveCount}", 1.1f);
+        for (int index = 0; index < EnemiesPerWave; index++)
+        {
+            int row = index / Columns;
+            float lane = index % Columns - (Columns - 1) * .5f;
+            float lateral = Wave == 2 ? -3.5f : Wave == 3 ? 3.5f : 0f;
+            var offset = new Vector3(lateral + lane * 1.5f + (row % 2) * .55f, 0f, 6f + row * 1.45f);
+            Spawn(enemyPrefab, offset, false);
         }
-        GameManager.Instance?.ShowBanner("DEFEAT 20 ENEMIES", 1.8f);
+    }
+
+    void SpawnBoss()
+    {
+        bossReleased = true;
+        Spawn(bossPrefab, new Vector3(0f, 0f, 10f), true);
+        GameManager.Instance?.ShowBanner("FINAL BOSS", 1.65f);
+        CameraFollow.Shake(.2f, .4f);
+    }
+
+    void Spawn(GameObject prefab, Vector3 offset, bool boss)
+    {
+        Vector3 position = stageOrigin + stageRotation * offset;
+        if (Physics.Raycast(position + Vector3.up * 2.5f, Vector3.down, out var floor, 5f,
+            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) &&
+            floor.collider.GetComponentInParent<Enemy>() == null &&
+            floor.collider.GetComponentInParent<PlayerController>() == null)
+            position.y = floor.point.y;
+
+        Vector3 facing = Vector3.ProjectOnPlane(player.position - position, Vector3.up);
+        Quaternion rotation = facing.sqrMagnitude > .01f ? Quaternion.LookRotation(facing) : stageRotation;
+        GameObject actor = prefab != null ? Instantiate(prefab, position, rotation) : CreateDefault(position);
+        if (!actor.TryGetComponent(out Enemy enemy)) enemy = actor.AddComponent<Enemy>();
+        enemy.isBoss = boss;
+        if (boss)
+        {
+            if (prefab == null)
+            {
+                actor.transform.localScale *= 2.2f;
+                enemy.maxHp = 1200f;
+                enemy.attackStyle = Enemy.AttackStyle.GroundSlam;
+                enemy.attackRange = 4f;
+                enemy.attackDamage = 28f;
+                enemy.attackWindup = .8f;
+            }
+            return;
+        }
+
+        float height = BodyHeight(actor.transform, 2f);
+        actor.transform.localScale *= Mathf.Clamp(ordinaryHeight / height, .35f, 2f);
+        enemy.maxHp = 48f;
+    }
+
+    static float BodyHeight(Transform actor, float fallback)
+    {
+        var meshes = actor.GetComponentsInChildren<SkinnedMeshRenderer>();
+        if (meshes.Length == 0) return fallback;
+        Bounds bounds = meshes[0].bounds;
+        foreach (var mesh in meshes) bounds.Encapsulate(mesh.bounds);
+        return bounds.size.y > .2f ? bounds.size.y : fallback;
     }
 
     // 仮モデル(足元が原点のカプセル)

@@ -23,19 +23,23 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
-    static readonly Timing Light1 = new Timing(24, 7, 11, 13, 20, 17);
-    static readonly Timing Light2 = new Timing(25, 8, 12, 14, 21, 18);
-    static readonly Timing Light3 = new Timing(31, 11, 16, 0, 0, 22);
-    static readonly Timing Strong = new Timing(33, 12, 17, 0, 0, 24);
-    static readonly Timing Special = new Timing(30, 10.5f, 11.5f, 0, 0, 30);
+    static readonly Timing Light1 = new Timing(13, 3, 7, 7, 12, 9);
+    static readonly Timing Light2 = new Timing(14, 4, 8, 8, 13, 10);
+    static readonly Timing Light3 = new Timing(18, 5, 10, 0, 0, 12);
+    static readonly Timing Strong = new Timing(21, 6, 11, 0, 0, 14);
+    static readonly Timing Special = new Timing(26, 8f, 9f, 0, 0, 26);
 
     public float maxHp = 500f;
     public float maxGauge = 100f;
     public float gaugePerHit = 4f;
     public float damageInvincibility = 0.75f;
-    public float lightDamage = 20f;
-    public float heavyDamage = 55f;
+    public float lightDamage = 25f;
+    public float heavyDamage = 65f;
     public float specialDamage = 160f;
+    const float FireSpecialRadius = 10f;
+    const float IceSpecialRadius = 8f;
+    const float WindSpecialRadius = 7f;
+    const float LightningSpecialRange = 7f;
     public Renderer[] swordRenderers;
     public ElementFx[] elementFx;
     public GameObject enemyDeathFx;
@@ -64,7 +68,6 @@ public class PlayerCombat : MonoBehaviour
     float queueUntil, frame, speed, invincibleUntil, windBuffUntil, impactPauseUntil;
     int hits;
     Vector3 attackOrigin, attackForward;
-    CombatPulse warning;
     readonly List<Enemy> candidates = new List<Enemy>(20);
     readonly HashSet<Enemy> hitSet = new HashSet<Enemy>();
 
@@ -95,11 +98,12 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        if (input.SelectedElement is Element selected && selected != CurrentElement)
+        int elementStep = input.ElementStep;
+        if (elementStep != 0)
         {
-            CurrentElement = selected;
+            CurrentElement = ElementUtil.Next(CurrentElement, elementStep);
             if (move == Move.None) ApplySwordColor();
-            PlayEffect(FxKind.Switch, selected, transform.position, transform.forward, 0f);
+            PlayEffect(FxKind.Switch, CurrentElement, transform.position, transform.forward);
         }
 
         if (controller.IsDodging || (input.Dodge && controller.DodgeReady && CanDodge))
@@ -123,7 +127,7 @@ public class PlayerCombat : MonoBehaviour
         if (chainInput && previousFrame < timing.ChainEnd && (queued != Command.Strong || command == Command.Strong))
         {
             queued = command;
-            queueUntil = Time.time + .18f;
+            queueUntil = Time.time + .27f;
         }
 
         if (frame > previousFrame && previousFrame < timing.HitEnd && frame >= timing.HitStart)
@@ -176,7 +180,7 @@ public class PlayerCombat : MonoBehaviour
         hits = 0;
         hitSet.Clear();
 
-        if (next == Move.Light2) controller.StepForward(.55f);
+        if (next == Move.Light2) controller.StepForward(.9f);
         attackOrigin = transform.position;
         float duration = timing.Duration / (30f * speed);
         controller.SlowFor(duration + (IsLight || next == Move.Special ? 0f : .04f),
@@ -184,14 +188,8 @@ public class PlayerCombat : MonoBehaviour
         if (next != Move.Special) return;
 
         Gauge = 0f;
-        float windup = timing.HitStart / 30f;
         invincibleUntil = Mathf.Max(invincibleUntil, duration + Time.time);
         CombatPresentation.Special(attackElement, attackOrigin);
-        Vector3 center = attackElement == Element.Wind ? ForwardFocus(attackOrigin, 3f) : attackOrigin;
-        float radius = attackElement == Element.Fire ? 6f : attackElement == Element.Ice ? 6f : 5f;
-        float angle = attackElement == Element.Ice ? 100f : attackElement == Element.Lightning ? 120f : 360f;
-        warning = CombatPulse.Create(center, ElementUtil.GetColor(attackElement), radius, windup, true,
-            attackForward, angle);
     }
 
     bool IsLight => move == Move.Light1 || move == Move.Light2 || move == Move.Light3;
@@ -206,8 +204,6 @@ public class PlayerCombat : MonoBehaviour
 
     void FinishAttack()
     {
-        if (warning != null) Destroy(warning.gameObject);
-        warning = null;
         if (move != Move.None) controller.SlowFor(0f, 1f);
         move = Move.None;
         impactPauseUntil = 0f;
@@ -217,8 +213,6 @@ public class PlayerCombat : MonoBehaviour
 
     void BeginImpact()
     {
-        if (warning != null) Destroy(warning.gameObject);
-        warning = null;
         Vector3 center = transform.position;
         if (move == Move.Special)
         {
@@ -229,26 +223,15 @@ public class PlayerCombat : MonoBehaviour
             }
             else center = attackOrigin;
 
-            PlayEffect(FxKind.Special, attackElement, center, attackForward, 0f);
-            float radius = attackElement == Element.Fire ? 6f : attackElement == Element.Ice ? 6f : 5f;
-            CombatPulse.Create(center, ElementUtil.GetColor(attackElement), radius, .42f, false, attackForward,
-                attackElement == Element.Ice ? 100f : attackElement == Element.Lightning ? 120f : 360f);
-            CameraFollow.Shake(.22f, .22f);
+            PlayEffect(FxKind.Special, attackElement, center, attackForward);
+
+            CameraFollow.Shake(.34f, .25f);
             Rumble.Play(.6f, .7f, .24f);
             return;
         }
 
         CombatPresentation.Sound(0, center);
-        if (IsLight)
-        {
-            // Neutral slash; the actual sword movement is driven by the attack pose.
-            CombatPulse.Create(center, Color.white, move == Move.Light3 ? 3.5f : 3f, .17f, false,
-                attackForward, move == Move.Light3 ? 100f : 155f);
-            return;
-        }
-        PlayEffect(FxKind.Heavy, attackElement, center, attackForward, 3.7f);
-        if (move == Move.Branch && attackElement == Element.Fire)
-            CombatPulse.Create(ForwardFocus(center, 3f), ElementUtil.GetColor(attackElement), 2.2f, .28f);
+        if (!IsLight) PlayEffect(FxKind.Heavy, attackElement, center, attackForward);
     }
 
     void ResolveImpact()
@@ -258,18 +241,19 @@ public class PlayerCombat : MonoBehaviour
         Vector3 source = move == Move.Special ? attackOrigin : transform.position;
         if (IsLight)
         {
-            float range = move == Move.Light3 ? 3.5f : 3f;
-            float angle = move == Move.Light3 ? 100f : 155f;
+            float range = move == Move.Light3 ? 5.1f : 4f;
+            float angle = move == Move.Light3 ? 145f : 175f;
             foreach (var enemy in candidates)
             {
-                if (!CanHit(enemy) || !InSector(enemy, source, range, angle) ||
-                    !ArenaGeometry.ClearPath(source, enemy.transform.position)) continue;
+                if (!CanHit(enemy)) continue;
+                Vector3 target = enemy.AttackTargetFrom(source);
+                if (!InSector(target, source, range, angle) || !ArenaGeometry.ClearPath(source, target)) continue;
                 bool launch = move == Move.Light3;
-                float push = move == Move.Light2 ? .45f : .12f;
+                float push = launch ? 1.4f : move == Move.Light2 ? .28f : .10f;
                 Hit(enemy, lightDamage * (launch ? 1.65f : 1f), null,
                     AwayFrom(enemy, source) * push);
-                if (launch) enemy.Launch(.85f);
-                else enemy.Interrupt(.18f);
+                if (launch) enemy.Launch(1.25f);
+                else if (!enemy.isBoss) enemy.Interrupt(.18f);
             }
             return;
         }
@@ -285,33 +269,36 @@ public class PlayerCombat : MonoBehaviour
         Vector3 focus = ForwardFocus(source, special || branch ? 3f : 1.8f);
         foreach (var enemy in candidates)
         {
-            if (!CanHit(enemy) || FlatDistanceSquared(source, enemy.transform.position) > 64f ||
-                !ArenaGeometry.ClearPath(source, enemy.transform.position)) continue;
+            if (!CanHit(enemy)) continue;
+            Vector3 target = enemy.AttackTargetFrom(source);
+            if (FlatDistanceSquared(source, target) > 100f || !ArenaGeometry.ClearPath(source, target)) continue;
             switch (attackElement)
             {
                 case Element.Fire:
-                    bool blast = branch && FlatDistanceSquared(enemy.transform.position, focus) <= 2.2f * 2.2f &&
-                        ArenaGeometry.ClearPath(focus, enemy.transform.position);
-                    if (!blast && !InSector(enemy, source, special ? 6f : 4f, special ? 360f : 125f)) continue;
+                    Vector3 blastTarget = branch ? enemy.AttackTargetFrom(focus) : target;
+                    bool blast = branch && FlatDistanceSquared(blastTarget, focus) <= 2.2f * 2.2f &&
+                        ArenaGeometry.ClearPath(focus, blastTarget);
+                    if (!blast && !InSector(target, source, special ? FireSpecialRadius : 5f, special ? 360f : 155f)) continue;
                     Hit(enemy, special ? specialDamage : heavyDamage * (branch ? 1.25f : 1f),
-                        Element.Fire, AwayFrom(enemy, blast ? focus : source) * (special ? 3.2f : branch ? 2f : .75f));
-                    enemy.Interrupt(special || branch ? .45f : .22f);
+                        Element.Fire, AwayFrom(enemy, blast ? focus : source) * (special ? 5f : branch ? 3.5f : 1.6f));
+                    if (!enemy.isBoss) enemy.Interrupt(special || branch ? .45f : .22f);
                     break;
                 case Element.Wind:
-                    float radius = special ? 5f : branch ? 3.5f : 2.3f;
-                    if (FlatDistanceSquared(enemy.transform.position, focus) > radius * radius ||
-                        !ArenaGeometry.ClearPath(focus, enemy.transform.position)) continue;
+                    float radius = special ? WindSpecialRadius : branch ? 4.5f : 3.1f;
+                    Vector3 windTarget = enemy.AttackTargetFrom(focus);
+                    if (FlatDistanceSquared(windTarget, focus) > radius * radius ||
+                        !ArenaGeometry.ClearPath(focus, windTarget)) continue;
                     Hit(enemy, special ? heavyDamage : heavyDamage * .65f, Element.Wind, Vector3.zero);
                     enemy.PullToward(focus, special ? 4f : branch ? 2.5f : 1.2f);
                     break;
                 case Element.Ice:
-                    Vector3 offset = enemy.transform.position - source;
+                    Vector3 offset = target - source;
                     float forward = Vector3.Dot(offset, attackForward);
                     float lateral = Vector3.Dot(offset, Vector3.Cross(Vector3.up, attackForward));
                     bool inRange = branch ? forward >= 0f && forward <= 5f && Mathf.Abs(lateral) <= 1.4f :
-                        InSector(enemy, source, special ? 6f : 3.3f, special ? 100f : 140f);
+                        InSector(target, source, special ? IceSpecialRadius : 4.1f, special ? 100f : 150f);
                     if (!inRange) continue;
-                    Hit(enemy, heavyDamage * (special ? .65f : .75f), Element.Ice, Vector3.zero);
+                    Hit(enemy, heavyDamage * (special ? .65f : .60f), Element.Ice, Vector3.zero);
                     if (branch || special) enemy.Freeze(special ? 2f : 1.5f);
                     break;
             }
@@ -322,16 +309,16 @@ public class PlayerCombat : MonoBehaviour
     {
         if (hits > 0) return;
         bool special = move == Move.Special;
-        Enemy current = NearestTarget(source, special ? 5f : 4f, true);
-        int remaining = special ? 6 : move == Move.Branch ? 4 : 2;
+        Enemy current = NearestTarget(source, special ? LightningSpecialRange : 5f, true);
+        int remaining = special ? 12 : move == Move.Branch ? 6 : 3;
         Vector3 previous = source;
         while (current != null && remaining-- > 0)
         {
-            Vector3 point = current.transform.position;
+            Vector3 point = current.AttackTargetFrom(previous);
             CombatPresentation.LightningArc(previous + Vector3.up, point + Vector3.up, ElementUtil.GetColor(Element.Lightning));
-            Hit(current, heavyDamage * (hits == 0 ? 1f : .65f), Element.Lightning, Vector3.zero);
+            Hit(current, special ? specialDamage : heavyDamage * (hits == 0 ? 1f : .75f), Element.Lightning, Vector3.zero);
             previous = point;
-            current = NearestTarget(point, 3f, false);
+            current = NearestTarget(point, 3.6f, false);
         }
     }
 
@@ -341,11 +328,13 @@ public class PlayerCombat : MonoBehaviour
         float nearestDistance = range * range;
         foreach (var enemy in candidates)
         {
-            if (!CanHit(enemy) || (first && !InSector(enemy, origin, range, 120f))) continue;
-            float distance = FlatDistanceSquared(origin, enemy.transform.position);
+            if (!CanHit(enemy)) continue;
+            Vector3 target = enemy.AttackTargetFrom(origin);
+            if (first && !InSector(target, origin, range, 120f)) continue;
+            float distance = FlatDistanceSquared(origin, target);
             if (distance > nearestDistance || (nearest != null &&
                 Mathf.Approximately(distance, nearestDistance) && enemy.GetInstanceID() >= nearest.GetInstanceID())) continue;
-            if (!ArenaGeometry.ClearPath(origin, enemy.transform.position)) continue;
+            if (!ArenaGeometry.ClearPath(origin, target)) continue;
             nearest = enemy;
             nearestDistance = distance;
         }
@@ -360,9 +349,9 @@ public class PlayerCombat : MonoBehaviour
         return source + attackForward * Mathf.Max(0f, clear - (clear < distance ? .12f : 0f));
     }
 
-    bool InSector(Enemy enemy, Vector3 origin, float range, float angle)
+    bool InSector(Vector3 target, Vector3 origin, float range, float angle)
     {
-        Vector3 offset = enemy.transform.position - origin;
+        Vector3 offset = target - origin;
         offset.y = 0f;
         float distance = offset.sqrMagnitude;
         return distance <= range * range && (angle >= 360f || distance < .01f ||
@@ -380,28 +369,43 @@ public class PlayerCombat : MonoBehaviour
 
     void Hit(Enemy enemy, float damage, Element? element, Vector3 knockback)
     {
-        if (!hitSet.Add(enemy) || !enemy.TakeHit(damage, element, knockback)) return;
+        if (!hitSet.Add(enemy)) return;
+        Vector3 hitPosition = enemy.AttackTargetFrom(transform.position) + Vector3.up * .9f;
+        if (!enemy.TakeHit(damage, element, knockback)) return;
+        if (enemy.isBoss && !enemy.IsDead && !IsLight && !enemy.IsBroken)
+            enemy.DamageBreak(move == Move.Special ? 45f : 25f);
         bool first = hits == 0;
         hits++;
-        if (move != Move.Special && hits <= 5) AddGauge(gaugePerHit);
+        if (move != Move.Special && (hits <= 6 || enemy.isBoss)) AddGauge(enemy.isBoss ? gaugePerHit * 2f : gaugePerHit);
         GameManager.Instance?.AddCombo(1);
 
-        Color color = element.HasValue ? ElementUtil.GetColor(element.Value) : Color.white;
-        if (hits <= 6) CombatPresentation.Impact(enemy.transform.position + Vector3.up * .2f, color, !IsLight);
-        if (element.HasValue && hits <= 5)
+        bool special = move == Move.Special;
+        bool finisher = move == Move.Light3;
+        bool heavy = !IsLight || finisher;
+        if (hits <= 8)
         {
-            GameObject effect = GetFx(FxKind.Hit, element.Value);
-            if (effect != null)
-                Fx.Play(effect, enemy.transform.position + Vector3.up, Quaternion.identity, fxScale);
+            // One prominent burst per move; the rest use small contact flashes.
+            bool accent = first && (heavy || enemy.IsDead);
+            float scale = accent ? (special ? 1.2f : .82f) : heavy ? .78f : .60f;
+            CombatPresentation.StrikeImpact(hitPosition, element, accent, scale * fxScale,
+                GetFx(FxKind.Hit, element ?? Element.Lightning));
         }
-        if (first && move != Move.Special)
+
+        if (first)
         {
-            if (!IsLight)
+            CombatPresentation.StrikeSound(heavy || enemy.IsDead, heavy ? .95f : .72f);
+            if (!special)
             {
-                CameraFollow.Shake(.14f, .11f);
-                impactPauseUntil = Time.unscaledTime + .04f;
+                float pause = heavy ? .048f : enemy.IsDead ? .032f : .02f;
+                impactPauseUntil = Time.unscaledTime + pause;
+                if (heavy) CameraFollow.Shake(finisher ? .16f : .23f, .14f);
+                Rumble.Play(.12f, heavy ? .58f : .26f, .09f);
             }
-            Rumble.Play(.12f, IsLight ? .26f : .55f, .09f);
+        }
+        else if (hits == 4 && !special)
+        {
+            CameraFollow.Shake(heavy ? .24f : .11f, .11f);
+            CombatPresentation.StrikeSound(true, .30f);
         }
         if (IsAttackPaused) enemy.PauseOnHit(impactPauseUntil);
     }
@@ -494,15 +498,10 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
-    void PlayEffect(FxKind kind, Element element, Vector3 center, Vector3 forward, float fallbackRadius)
+    void PlayEffect(FxKind kind, Element element, Vector3 center, Vector3 forward)
     {
         GameObject prefab = GetFx(kind, element);
-        if (prefab == null)
-        {
-            if (fallbackRadius > 0f)
-                CombatPulse.Create(center, ElementUtil.GetColor(element), fallbackRadius, .2f, false, forward, 125f);
-            return;
-        }
+        if (prefab == null) return;
         Quaternion facing = Quaternion.LookRotation(forward);
         Vector3 offset = kind == FxKind.Heavy ? facing * fxOffset : Vector3.up * .1f;
         Vector3 rotation = kind == FxKind.Special ? specialRotation : kind == FxKind.Switch ? switchRotation : fxRotation;

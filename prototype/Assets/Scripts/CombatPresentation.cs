@@ -16,6 +16,9 @@ public class CombatPresentation : MonoBehaviour
     AudioSource audioSource, ambience;
     AudioClip[] generated;
     float flashAlpha, nextSound;
+    AudioClip strikeClack, strikeThump;
+    readonly GameObject[] strikeEffects = new GameObject[4];
+    GameObject finishingImpact;
     float nextWarning,nextSlam;
     Color flashColor;
     Image flash;
@@ -28,6 +31,12 @@ public class CombatPresentation : MonoBehaviour
         effectMaterial=new Material(Shader.Find("Sprites/Default"));
         audioSource=gameObject.AddComponent<AudioSource>();audioSource.playOnAwake=false;
         generated=new[]{Tone("Blade",.16f,520,90,.65f),Tone("Impact",.22f,135,45,.55f),Tone("Warning",.28f,340,520,.12f),Tone("Slam",.65f,85,25,.48f),Tone("Special",.9f,190,50,.32f),Tone("Arena ambience",8,48,48,.045f)};
+        strikeClack=Tone("Sword contact",.09f,760f,260f,.38f);
+        strikeThump=Tone("Sword weight",.16f,160f,48f,.34f);
+        string[] colors = { "Red", "Blue", "Yellow", "Green" };
+        for (int i = 0; i < colors.Length; i++)
+            strikeEffects[i] = Resources.Load<GameObject>("SwordHitMini" + colors[i]);
+        finishingImpact = Resources.Load<GameObject>("SwordHitYellowCritical");
         ambience=gameObject.AddComponent<AudioSource>();ambience.clip=generated[5];ambience.loop=true;ambience.volume=.12f;ambience.Play();
         gameObject.AddComponent<AudioVolumeChannel>().Configure(ambience, AudioVolumeChannel.Bus.Bgm);
         gameObject.AddComponent<AudioVolumeChannel>().Configure(audioSource, AudioVolumeChannel.Bus.Effects);
@@ -106,6 +115,25 @@ public class CombatPresentation : MonoBehaviour
         if(Instance==null)return;
         Sound(1,position);
     }
+    public static void StrikeImpact(Vector3 position, Element? element, bool accent, float scale, GameObject fallback)
+    {
+        var self = Instance;
+        if (self == null) return;
+        var prefab = accent ? self.finishingImpact : null;
+        if (prefab == null) prefab = self.strikeEffects[(int)(element ?? Element.Lightning)];
+        if (prefab == null) prefab = fallback;
+        Quaternion facing = Camera.main != null ? Camera.main.transform.rotation : Quaternion.identity;
+        Fx.Play(prefab, position, facing, scale);
+    }
+
+    public static void StrikeSound(bool heavy, float volume)
+    {
+        var self = Instance;
+        if (self == null) return;
+        var clip = self.hitSound != null ? self.hitSound : self.strikeClack;
+        self.audioSource.PlayOneShot(clip, self.soundVolume * volume);
+        if (heavy) self.audioSource.PlayOneShot(self.strikeThump, self.soundVolume * volume);
+    }
     public static void LightningArc(Vector3 from, Vector3 to, Color color)
     {
         if (Instance == null) return;
@@ -146,5 +174,7 @@ public class CombatPresentation : MonoBehaviour
         if(Instance==this){Instance=null;if(ownsTime)Time.timeScale=1;}
         if(effectMaterial!=null)Destroy(effectMaterial);
         if(generated!=null)foreach(var clip in generated)Destroy(clip);
+        if(strikeClack!=null)Destroy(strikeClack);
+        if(strikeThump!=null)Destroy(strikeThump);
     }
 }

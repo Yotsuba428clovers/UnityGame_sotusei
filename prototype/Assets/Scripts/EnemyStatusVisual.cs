@@ -93,10 +93,11 @@ public sealed class EnemyStatusVisual : MonoBehaviour
         if(enemy.IsFrozen&&!enemy.IsDead)tint=Tint(Element.Ice);
         if(broken&&!burn&&!ice&&!shock&&!wind)tint=new Color(.65f,.72f,.8f);
         CurrentTint=tint;
-        Color visualTint=active&&enemy.HitFlash?Color.Lerp(tint,Color.white,.08f):tint;
+        bool hitFlash = enemy.HitFlash;
+        Color visualTint = hitFlash ? Color.Lerp(active ? tint : Color.white, Color.white, .45f) : tint;
         if(!hasPreviousColor||visualTint!=previousColor)
         {
-            foreach(var slot in slots)Paint(slot,visualTint,active);
+            foreach(var slot in slots)Paint(slot,visualTint,active || hitFlash);
             previousColor=visualTint;hasPreviousColor=true;
         }
         var names=new List<string>();

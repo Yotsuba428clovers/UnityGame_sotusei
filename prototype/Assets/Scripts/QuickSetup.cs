@@ -7,6 +7,7 @@ public class QuickSetup : MonoBehaviour
 {
     public GameObject playerModelPrefab;
     public GameObject enemyPrefab;
+    public GameObject bossPrefab;
     public bool enhanceBattlePresentation=true;
     public bool firstPersonView;
     [Range(-10f,55f)] public float thirdPersonStartPitch = 18f;
@@ -126,6 +127,7 @@ public class QuickSetup : MonoBehaviour
         var spawner = sys.AddComponent<EnemySpawner>();
         spawner.player = player.transform;
         spawner.enemyPrefab = enemyPrefab;
+        spawner.bossPrefab = bossPrefab != null ? bossPrefab : Resources.Load<GameObject>("Stone_Prefab");
         var hud = sys.AddComponent<HUD>();
         sys.AddComponent<SettingsMenu>();
         hud.font = hudFont;

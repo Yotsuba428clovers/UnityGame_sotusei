@@ -4,8 +4,7 @@ using UnityEngine.InputSystem;
 // PC / ゲームパッド入力。Input Systemのアクションをコードで定義。
 public class PlayerInputs : MonoBehaviour
 {
-    InputAction move, look, mouseLook, attack, heavy, dodge, special;
-    readonly InputAction[] elements = new InputAction[4];
+    InputAction move, look, mouseLook, attack, heavy, dodge, special, next, previous;
     bool ownsCursor;
     int mouseCaptureFrame=-100;
 
@@ -18,15 +17,7 @@ public class PlayerInputs : MonoBehaviour
     public bool Heavy => heavy.WasPressedThisFrame();
     public bool Dodge => dodge.WasPressedThisFrame();
     public bool Special => special.WasPressedThisFrame();
-    public Element? SelectedElement
-    {
-        get
-        {
-            for (int i = 0; i < elements.Length; i++)
-                if (elements[i].WasPressedThisFrame()) return (Element)i;
-            return null;
-        }
-    }
+    public int ElementStep => (next.WasPressedThisFrame() ? 1 : 0) - (previous.WasPressedThisFrame() ? 1 : 0);
 
     static InputAction Btn(string name, string pad, string key)
     {
@@ -48,28 +39,26 @@ public class PlayerInputs : MonoBehaviour
         look.AddBinding("<Gamepad>/rightStick");
         mouseLook=new InputAction("Mouse Look",InputActionType.PassThrough,"<Mouse>/delta");
 
-        attack = Btn("Attack", "<Gamepad>/buttonWest", "<Mouse>/leftButton");
-        heavy = Btn("Heavy", "<Gamepad>/buttonNorth", "<Mouse>/rightButton");
+        attack = Btn("Attack", "<Gamepad>/buttonWest", "<Keyboard>/f");
+        heavy = Btn("Heavy", "<Gamepad>/buttonNorth", "<Keyboard>/g");
         dodge = Btn("Dodge", "<Gamepad>/buttonSouth", "<Keyboard>/space");
-        special = Btn("Special", "<Gamepad>/rightShoulder", "<Keyboard>/f");
-        elements[(int)Element.Fire] = Btn("Fire", "<Gamepad>/dpad/up", "<Keyboard>/1");
-        elements[(int)Element.Wind] = Btn("Wind", "<Gamepad>/dpad/right", "<Keyboard>/2");
-        elements[(int)Element.Ice] = Btn("Ice", "<Gamepad>/dpad/down", "<Keyboard>/3");
-        elements[(int)Element.Lightning] = Btn("Lightning", "<Gamepad>/dpad/left", "<Keyboard>/4");
+        special = Btn("Special", "<Gamepad>/buttonEast", "<Keyboard>/z");
+        next = Btn("Next element", "<Gamepad>/rightShoulder", "<Keyboard>/e");
+        previous = Btn("Previous element", "<Gamepad>/leftShoulder", "<Keyboard>/q");
     }
 
     void OnEnable()
     {
         move.Enable(); look.Enable(); mouseLook.Enable(); attack.Enable(); heavy.Enable();
         dodge.Enable(); special.Enable();
-        foreach (var element in elements) element.Enable();
+        next.Enable(); previous.Enable();
     }
 
     void OnDisable()
     {
         move.Disable(); look.Disable(); mouseLook.Disable(); attack.Disable(); heavy.Disable();
         dodge.Disable(); special.Disable();
-        foreach (var element in elements) element.Disable();
+        next.Disable(); previous.Disable();
         ReleaseCursor();
     }
 
@@ -95,6 +84,6 @@ public class PlayerInputs : MonoBehaviour
     {
         move?.Dispose();look?.Dispose();mouseLook?.Dispose();attack?.Dispose();heavy?.Dispose();
         dodge?.Dispose();special?.Dispose();
-        foreach (var element in elements) element?.Dispose();
+        next?.Dispose(); previous?.Dispose();
     }
 }

@@ -44,9 +44,9 @@ sealed class AttackPose
         {
             trail = tip.gameObject.AddComponent<TrailRenderer>();
             trail.sharedMaterial = CombatPresentation.Instance.effectMaterial;
-            trail.time = .11f;
+            trail.time = .16f;
             trail.minVertexDistance = .06f;
-            trail.startWidth = .20f;
+            trail.startWidth = .38f;
             trail.endWidth = 0f;
             trail.emitting = false;
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

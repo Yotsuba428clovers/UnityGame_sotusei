@@ -8,9 +8,11 @@ public class HUD : MonoBehaviour
     PlayerCombat player;
     Canvas canvas;
     RectTransform root, special;
-    Image hpFill, hpTrail, objectiveFill;
-    Text hpLabel, chargeLabel, specialLabel, comboLabel, killsLabel, buffsLabel, banner;
+    Image hpFill, hpTrail, objectiveFill, bossFill;
+    Text hpLabel, chargeLabel, specialLabel, comboLabel, killsLabel, waveLabel, bossLabel, buffsLabel, banner;
     BattleRingGraphic chargeRing, readyGlow, innerRing;
+    EnemySpawner spawner;
+    RectTransform bossPanel;
     Image[] elements=new Image[4];
     RectTransform[] elementRects=new RectTransform[4];
     CanvasGroup comboGroup;
@@ -88,18 +90,18 @@ public class HUD : MonoBehaviour
         buffsLabel=Label("Wind buff",root,new Vector2(0,1),new Vector2(160,-113),new Vector2(300,36),22,Gold,TextAnchor.MiddleLeft);
         buffsLabel.rectTransform.pivot=new Vector2(0,.5f);
 
-        special=Rect("Special attack",root,new Vector2(0,1),new Vector2(101,-139),new Vector2(156,156));
-        readyGlow=Ring("Ready aura",special,166,new Color(.74f,1,.22f,0),.05f);
-        Ring("Outer gold rim",special,142,Gold,.015f);
-        Ring("Dark disc",special,130,Dark,1);
-        Ring("Charge track",special,130,new Color(.31f,.35f,.17f,.85f),.075f);
-        chargeRing=Ring("Circular special charge",special,130,Lime,.075f);chargeRing.fill=0;
-        innerRing=Ring("Inner element ring",special,101,new Color(.88f,.25f,.94f),.025f);
-        var flameRect=Rect("Special flame",special,new Vector2(.5f,.5f),Vector2.zero,new Vector2(54,62));
-        var flame=flameRect.gameObject.AddComponent<BattleFlameGraphic>();flame.color=Lime;flame.raycastTarget=false;
-        chargeLabel=Label("Charge percent",special,new Vector2(.5f,.5f),new Vector2(0,94),new Vector2(160,34),25,White);
-        specialLabel=Label("Special status",special,new Vector2(.5f,.5f),new Vector2(0,-100),new Vector2(290,30),17,Gold);
-        Label("Special input",special,new Vector2(.5f,.5f),new Vector2(0,-129),new Vector2(260,26),23,White).text="F / R1  ·  SPECIAL";
+        spawner=GetComponent<EnemySpawner>();
+        special=Rect("Special attack",root,new Vector2(.5f,0f),new Vector2(0f,108f),new Vector2(146f,146f));
+        readyGlow=Ring("Ready aura",special,164,new Color(1f,.62f,.16f,0f),.07f);
+        Ring("Outer rim",special,149,new Color(.88f,.93f,1f,.48f),.015f);
+        Ring("Dark disc",special,140,new Color(.035f,.05f,.08f,.96f),1f);
+        Ring("Charge track",special,136,new Color(.22f,.28f,.36f),.11f);
+        chargeRing=Ring("Circular special charge",special,136,new Color(.42f,.8f,1f),.11f);chargeRing.fill=0f;
+        innerRing=Ring("Inner element ring",special,104,Gold,.027f);
+        chargeLabel=Label("Charge percent",special,new Vector2(.5f,.5f),new Vector2(0f,5f),new Vector2(108f,50f),34,White);
+        var keycap=Box("Special input backing",special,new Vector2(.5f,.5f),new Vector2(0f,-79f),new Vector2(74f,28f),Dark);
+        specialLabel=Label("Special input",keycap.transform,new Vector2(.5f,.5f),Vector2.zero,new Vector2(74f,26f),19,White);
+        specialLabel.text="Z / B";
 
         var combo=Rect("Combo",root,new Vector2(0,0),new Vector2(50,99),new Vector2(190,90));combo.pivot=new Vector2(0,.5f);
         comboGroup=combo.gameObject.AddComponent<CanvasGroup>();comboGroup.alpha=0;
@@ -108,9 +110,8 @@ public class HUD : MonoBehaviour
         comboLabel=Label("Hit count",combo,new Vector2(.5f,.5f),Vector2.zero,new Vector2(164,80),54,White,TextAnchor.MiddleLeft);
 
         var selector=Rect("Elements",root,new Vector2(1,0),new Vector2(-240,111),new Vector2(400,155));
-        Element[] order = { Element.Fire, Element.Wind, Element.Ice, Element.Lightning };
-        string[] icons = { "▲", "↻", "❄", "ϟ" };
-        string[] directions = { "↑", "→", "↓", "←" };
+        Element[] order = { Element.Fire, Element.Ice, Element.Lightning, Element.Wind };
+        string[] icons = { "▲", "❄", "ϟ", "↻" };
         for(int i=0;i<4;i++)
         {
             Element element = order[i];
@@ -121,12 +122,18 @@ public class HUD : MonoBehaviour
             Box("Element accent",card.transform,new Vector2(.5f,1),new Vector2(0,-1),new Vector2(82,3),ElementUtil.GetColor(element));
             Label("Glyph",card.transform,new Vector2(.5f,.5f),new Vector2(0,19),new Vector2(80,43),33,ElementUtil.GetColor(element)).text=icons[i];
             Label("Name",card.transform,new Vector2(.5f,.5f),new Vector2(0,-9),new Vector2(82,22),14,White).text=name;
-            Label("Shortcut",card.transform,new Vector2(.5f,.5f),new Vector2(0,-34),new Vector2(82,22),16,White).text=(i+1)+" / "+directions[i];
         }
-        var objective = Rect("Stage objective", root, new Vector2(.5f, 1f), new Vector2(0f, -50f), new Vector2(230f, 60f));
-        Box("Objective backing", objective, new Vector2(.5f, .5f), Vector2.zero, new Vector2(230f, 60f), Dark);
-        killsLabel=Label("K.O. count",objective,new Vector2(.5f,.5f),new Vector2(0,6),new Vector2(230,40),28,White);
-        objectiveFill=Bar("Stage progress",objective,new Vector2(.5f,.5f),new Vector2(0,-17),new Vector2(178,5),Gold);
+        Label("Element input",selector,new Vector2(.5f,.5f),new Vector2(0,-73),new Vector2(400,26),18,White).text="Q / E   ·   LB / RB";
+        var objective=Rect("Stage objective",root,new Vector2(.5f,1f),new Vector2(0f,-58f),new Vector2(340f,82f));
+        Box("Objective backing",objective,new Vector2(.5f,.5f),Vector2.zero,new Vector2(340f,82f),Dark);
+        waveLabel=Label("Wave count",objective,new Vector2(.5f,.5f),new Vector2(-79f,10f),new Vector2(156f,38f),24,Gold);
+        killsLabel=Label("K.O. count",objective,new Vector2(.5f,.5f),new Vector2(78f,10f),new Vector2(150f,38f),24,White);
+        objectiveFill=Bar("Stage progress",objective,new Vector2(.5f,.5f),new Vector2(0f,-21f),new Vector2(286f,5f),Gold);
+        bossPanel=Rect("Boss health",root,new Vector2(.5f,1f),new Vector2(0f,-132f),new Vector2(540f,48f));
+        Box("Boss backing",bossPanel,new Vector2(.5f,.5f),Vector2.zero,new Vector2(540f,48f),Dark);
+        bossLabel=Label("Boss name",bossPanel,new Vector2(.5f,.5f),new Vector2(0f,8f),new Vector2(500f,28f),20,White);
+        bossFill=Bar("Boss HP",bossPanel,new Vector2(.5f,.5f),new Vector2(0f,-13f),new Vector2(505f,7f),new Color(1f,.39f,.24f));
+        bossPanel.gameObject.SetActive(false);
         banner=Label("Battle banner",root,new Vector2(.5f,.5f),new Vector2(0,140),new Vector2(1300,100),64,White);
         clearPanel=Rect("Stage results",root,new Vector2(.74f,.5f),Vector2.zero,new Vector2(600,480));
         clearGroup=clearPanel.gameObject.AddComponent<CanvasGroup>();clearGroup.alpha=0;clearGroup.blocksRaycasts=false;
@@ -174,13 +181,19 @@ public class HUD : MonoBehaviour
         SetBar(hpFill,displayedHp,320);SetBar(hpTrail,Mathf.Max(displayedHp,trailingHp),320);
         hpLabel.text="HP  "+Mathf.CeilToInt(player.Hp)+" / "+Mathf.CeilToInt(player.maxHp);
         float gauge=Mathf.Clamp01(player.Gauge/Mathf.Max(1,player.maxGauge));
-        displayedCharge=Mathf.MoveTowards(displayedCharge,gauge,dt*1.5f);chargeRing.fill=displayedCharge;
-        bool ready=gauge>=.999f;if(ready&&!wasReady)special.localScale=Vector3.one*1.12f;wasReady=ready;
-        float pulse=ready?1+Mathf.Sin(Time.unscaledTime*4)*.025f:1;
-        special.localScale=Vector3.Lerp(special.localScale,Vector3.one*(pulse*.66f),blend);
-        readyGlow.color=new Color(Lime.r,Lime.g,Lime.b,ready?.25f+Mathf.Sin(Time.unscaledTime*4)*.15f:0);
+        bool ready=player.Gauge>=player.maxGauge;
+        displayedCharge=ready?1f:Mathf.MoveTowards(displayedCharge,gauge,dt*(gauge<displayedCharge?5f:2f));
+        chargeRing.fill=displayedCharge;
+        Color charged=new Color(1f,.68f,.20f);
+        chargeRing.color=ready?charged:new Color(.42f,.8f,1f);
+        if(ready&&!wasReady)special.localScale=Vector3.one*1.14f;
+        wasReady=ready;
+        special.localScale=Vector3.Lerp(special.localScale,Vector3.one,blend);
+        readyGlow.color=new Color(charged.r,charged.g,charged.b,ready?.38f+Mathf.Sin(Time.unscaledTime*5f)*.14f:0f);
         innerRing.color=Color.Lerp(innerRing.color,ElementUtil.GetColor(player.CurrentElement),blend);
-        chargeLabel.text=Mathf.RoundToInt(gauge*100)+"%";specialLabel.text=ready?"SPECIAL READY":"CHARGING";specialLabel.color=ready?Lime:Gold;
+        chargeLabel.text=ready?"ULT":Mathf.FloorToInt(gauge*100)+"%";
+        chargeLabel.color=ready?charged:White;
+        specialLabel.color=ready?charged:White;
         float targetAlpha=gm.Combo>1&&gm.ComboActive?1:0;
         comboGroup.alpha=Mathf.MoveTowards(comboGroup.alpha,targetAlpha,dt*5);
         if(gm.Combo!=previousCombo&&gm.Combo>1)comboScale=1.13f;
@@ -194,7 +207,17 @@ public class HUD : MonoBehaviour
             elementRects[i].localScale=Vector3.Lerp(elementRects[i].localScale,Vector3.one*(active?1.1f:1),blend);
         }
         killsLabel.text="K.O.  "+gm.Kills+" / "+GameManager.KillGoal;
-        SetBar(objectiveFill,gm.Kills/(float)GameManager.KillGoal,178);
+        var boss=Enemy.Boss;
+        bool hasBoss=boss!=null&&!boss.IsDead;
+        int wave=spawner!=null? Mathf.Max(1,spawner.Wave):1;
+        waveLabel.text=hasBoss?"FINAL BOSS":$"WAVE {wave} / {EnemySpawner.WaveCount}";
+        SetBar(objectiveFill,gm.Kills/(float)GameManager.KillGoal,286);
+        bossPanel.gameObject.SetActive(hasBoss);
+        if(hasBoss)
+        {
+            bossLabel.text=boss.IsBroken?"BREAK!":"STONE GUARDIAN";
+            SetBar(bossFill,boss.Hp/Mathf.Max(1f,boss.maxHp),505);
+        }
         buffsLabel.text=player.WindBuffRemaining>0?"↻  WIND MODE  "+player.WindBuffRemaining.ToString("0.0")+"s":"";
         banner.text=gm.BannerRemaining>0?gm.BannerText:"";
     }
