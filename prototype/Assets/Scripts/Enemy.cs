@@ -174,6 +174,8 @@ public class Enemy : MonoBehaviour
             position += heading * ArenaGeometry.ClearDistance(position + Vector3.up * (.75f - airOffset),
                 heading, distance, Mathf.Min(.45f, Radius));
         }
+        if (step.sqrMagnitude > .000001f && ArenaGeometry.SampleMeadowFloor(position, out var meadow))
+            position.y = meadow.point.y + airOffset;
         if (airTime > 0f && !IsFrozen)
         {
             airTime = Mathf.Max(0f, airTime - Time.deltaTime);

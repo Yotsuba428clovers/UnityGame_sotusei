@@ -17,6 +17,7 @@ public class QuickSetup : MonoBehaviour
     [Range(0,1)] public float combatSoundVolume=.35f;
     public bool createPlaceholderSword = true;
     [Header("背景")]
+    public Transform playerStart;
     public Material groundMaterial;
     [Min(.5f)] public float groundTileWorldSize = 8f;
 
@@ -47,22 +48,25 @@ public class QuickSetup : MonoBehaviour
         }
 
         // 地面(300m四方)
-        var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        ground.name = "Ground";
-        ground.transform.localScale = new Vector3(30f, 1f, 30f);
-        var surface=groundMaterial!=null?groundMaterial:Resources.Load<Material>("Environment/GrassStoneGround");
-        if(surface!=null)
+        if (!playerStart)
         {
-            var tiled=new Material(surface);
-            tiled.mainTextureScale=Vector2.one*(300f/Mathf.Max(.5f,groundTileWorldSize));
-            ground.GetComponent<Renderer>().sharedMaterial=tiled;
-            ground.AddComponent<RuntimeGroundMaterial>().ownedMaterial=tiled;
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            ground.name = "Ground";
+            ground.transform.localScale = new Vector3(30f, 1f, 30f);
+            var surface=groundMaterial!=null?groundMaterial:Resources.Load<Material>("Environment/GrassStoneGround");
+            if(surface!=null)
+            {
+                var tiled=new Material(surface);
+                tiled.mainTextureScale=Vector2.one*(300f/Mathf.Max(.5f,groundTileWorldSize));
+                ground.GetComponent<Renderer>().sharedMaterial=tiled;
+                ground.AddComponent<RuntimeGroundMaterial>().ownedMaterial=tiled;
+            }
+            else ground.GetComponent<Renderer>().material.color = new Color(0.22f, 0.25f, 0.3f);
         }
-        else ground.GetComponent<Renderer>().material.color = new Color(0.22f, 0.25f, 0.3f);
 
         // プレイヤー(足元が原点)
         var player = new GameObject("Player");
-        player.transform.position = new Vector3(0f, 0.1f, 0f);
+        player.transform.SetPositionAndRotation(playerStart ? playerStart.position : Vector3.up * .1f, playerStart ? playerStart.rotation : Quaternion.identity);
         var cc = player.AddComponent<CharacterController>();
         cc.height = 2f;
         cc.radius = 0.4f;

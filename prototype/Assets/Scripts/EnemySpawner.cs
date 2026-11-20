@@ -64,7 +64,8 @@ public class EnemySpawner : MonoBehaviour
     void Spawn(GameObject prefab, Vector3 offset, bool boss)
     {
         Vector3 position = stageOrigin + stageRotation * offset;
-        if (Physics.Raycast(position + Vector3.up * 2.5f, Vector3.down, out var floor, 5f,
+        if (ArenaGeometry.SampleMeadowFloor(position, out var meadow)) position.y = meadow.point.y;
+        else if (Physics.Raycast(position + Vector3.up * 2.5f, Vector3.down, out var floor, 5f,
             Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) &&
             floor.collider.GetComponentInParent<Enemy>() == null &&
             floor.collider.GetComponentInParent<PlayerController>() == null)

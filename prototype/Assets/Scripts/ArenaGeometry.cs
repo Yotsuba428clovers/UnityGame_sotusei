@@ -4,6 +4,14 @@ public static class ArenaGeometry
 {
     static readonly RaycastHit[] Hits = new RaycastHit[64];
 
+    static readonly int MeadowFloorMask = LayerMask.GetMask("MeadowFloor");
+
+    public static bool SampleMeadowFloor(Vector3 point, out RaycastHit hit)
+    {
+        return Physics.Raycast(point + Vector3.up * 6f, Vector3.down, out hit, 14f,
+            MeadowFloorMask, QueryTriggerInteraction.Ignore);
+    }
+
     public static bool ClearPath(Vector3 from, Vector3 to)
     {
         Vector3 offset = to - from;
